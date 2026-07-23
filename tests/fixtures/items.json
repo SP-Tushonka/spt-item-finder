@@ -1,0 +1,51 @@
+{
+    "54009119af1c881c07000029": {
+        "_id": "54009119af1c881c07000029",
+        "_name": "Item",
+        "_parent": "",
+        "_type": "Node",
+        "_props": {}
+    },
+    "5448e8d04bdc2ddf718b4569": {
+        "_id": "5448e8d04bdc2ddf718b4569",
+        "_name": "food_drink",
+        "_parent": "54009119af1c881c07000029",
+        "_type": "Node",
+        "_props": {}
+    },
+    "544fb62a4bdc2dd4348b456b": {
+        "_id": "544fb62a4bdc2dd4348b456b",
+        "_name": "emergency_water_ration",
+        "_parent": "5448e8d04bdc2ddf718b4569",
+        "_type": "Item",
+        "_props": { "Weight": 0.5, "StackMaxSize": 1 }
+    },
+    "5448fee04bdc2dbc018b4567": {
+        "_id": "5448fee04bdc2dbc018b4567",
+        "_name": "bottle_of_water",
+        "_parent": "5448e8d04bdc2ddf718b4569",
+        "_type": "Item",
+        "_props": { "Weight": 0.65, "StackMaxSize": 1 }
+    },
+    "aaaaaaaaaaaaaaaaaaaaaaaa": {
+        "_id": "aaaaaaaaaaaaaaaaaaaaaaaa",
+        "_name": "orphan_item",
+        "_parent": "ffffffffffffffffffffffff",
+        "_type": "Item",
+        "_props": {}
+    },
+    "bbbbbbbbbbbbbbbbbbbbbbbb": {
+        "_id": "bbbbbbbbbbbbbbbbbbbbbbbb",
+        "_name": "cycle_one",
+        "_parent": "cccccccccccccccccccccccc",
+        "_type": "Item",
+        "_props": {}
+    },
+    "cccccccccccccccccccccccc": {
+        "_id": "cccccccccccccccccccccccc",
+        "_name": "cycle_two",
+        "_parent": "bbbbbbbbbbbbbbbbbbbbbbbb",
+        "_type": "Item",
+        "_props": {}
+    }
+}

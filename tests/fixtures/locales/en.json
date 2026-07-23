@@ -1,0 +1,14 @@
+{
+    "544fb62a4bdc2dd4348b456b Name": "Emergency Water Ration",
+    "544fb62a4bdc2dd4348b456b ShortName": "Water",
+    "544fb62a4bdc2dd4348b456b Description": "An emergency water ration.",
+    "5448fee04bdc2dbc018b4567 Name": "Bottle of water (0.6L)",
+    "5448fee04bdc2dbc018b4567 ShortName": "Water (0.6)",
+    "5448fee04bdc2dbc018b4567 Description": "A bottle of drinking water.",
+    "aaaaaaaaaaaaaaaaaaaaaaaa Name": "Orphan Item",
+    "aaaaaaaaaaaaaaaaaaaaaaaa ShortName": "Orphan",
+    "aaaaaaaaaaaaaaaaaaaaaaaa Description": "An item whose parent is missing.",
+    "5cc0868e14c02e000c6bea68 Name": "Head",
+    "5cc0868e14c02e000c6bea68 ShortName": "Head",
+    "5cc0868e14c02e000c6bea68 Description": "A customization head."
+}

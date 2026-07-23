@@ -1,0 +1,9 @@
+{
+    "5cc0868e14c02e000c6bea68": {
+        "_id": "5cc0868e14c02e000c6bea68",
+        "_name": "customization_head",
+        "_parent": "",
+        "_type": "Item",
+        "_props": { "Side": ["Usec", "Bear"] }
+    }
+}

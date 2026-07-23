@@ -1,0 +1,14 @@
+{
+    "544fb62a4bdc2dd4348b456b Name": "Ration d'eau d'urgence",
+    "544fb62a4bdc2dd4348b456b ShortName": "Eau",
+    "544fb62a4bdc2dd4348b456b Description": "Une ration d'eau d'urgence.",
+    "5448fee04bdc2dbc018b4567 Name": "Bouteille d'eau (0,6L)",
+    "5448fee04bdc2dbc018b4567 ShortName": "Eau (0,6)",
+    "5448fee04bdc2dbc018b4567 Description": "Une bouteille d'eau potable.",
+    "aaaaaaaaaaaaaaaaaaaaaaaa Name": "Objet orphelin",
+    "aaaaaaaaaaaaaaaaaaaaaaaa ShortName": "Orphelin",
+    "aaaaaaaaaaaaaaaaaaaaaaaa Description": "Un objet dont le parent est manquant.",
+    "5cc0868e14c02e000c6bea68 Name": "Tête",
+    "5cc0868e14c02e000c6bea68 ShortName": "Tête",
+    "5cc0868e14c02e000c6bea68 Description": "Une tête de personnalisation."
+}

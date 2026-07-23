@@ -1,0 +1,29 @@
+services:
+    app:
+        build: .
+        ports:
+            - "${PORT:-3000}:3000"
+        environment:
+            SITE_URL: ${SITE_URL:-http://localhost:3000}
+            REFRESH_TOKEN: ${REFRESH_TOKEN:-}
+            REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-24}
+        volumes:
+            - data:/app/data # the ~20MB upstream snapshot survives restarts and rebuilds
+        restart: unless-stopped
+
+    # Local development with hot reload: docker compose --profile dev up dev
+    dev:
+        profiles: [dev]
+        image: oven/bun:1
+        working_dir: /app
+        command: sh -c "bun install && bun --hot src/index.ts"
+        ports:
+            - "3000:3000"
+        volumes:
+            - .:/app
+            - data:/app/data
+        environment:
+            DATA_DIR: /app/data
+
+volumes:
+    data:

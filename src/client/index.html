@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>SPT Item Finder</title>
+        <meta
+            name="description"
+            content="Search every item template in the SPT server database: names, IDs, properties, handbook prices, and locale text."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400..800;1,400..800&display=swap"
+        />
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+        <header class="site-header">
+            <a class="brand" href="/" id="brand">SPT <span>Item Finder</span></a>
+            <nav class="ext-links" aria-label="SPT sites">
+                <a href="https://forge.sp-tarkov.com">Forge</a>
+                <a href="https://wiki.sp-tarkov.com">Wiki</a>
+            </nav>
+            <div class="controls">
+                <select id="locale" aria-label="Item data language">
+                    <option value="en">en</option>
+                </select>
+            </div>
+        </header>
+
+        <main>
+            <section class="search" role="search">
+                <div class="combobox">
+                    <input
+                        id="q"
+                        type="text"
+                        role="combobox"
+                        aria-expanded="false"
+                        aria-controls="q-list"
+                        aria-autocomplete="list"
+                        autocomplete="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        placeholder="Search by name, short name, or item ID…"
+                    />
+                    <ul id="q-list" role="listbox" aria-label="Matching items" hidden></ul>
+                </div>
+            </section>
+
+            <nav id="crumbs" class="crumbs" aria-label="Item hierarchy" hidden></nav>
+
+            <section id="detail" class="detail" aria-live="polite">
+                <div class="empty">
+                    <p>Every item template in the SPT server database.</p>
+                    <p class="empty-sub">
+                        Type at least 3 characters of a name, or paste a 24-character item ID.
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <script type="module" src="./app.ts"></script>
+    </body>
+</html>
