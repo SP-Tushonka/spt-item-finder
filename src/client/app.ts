@@ -1,5 +1,5 @@
 import { ApiError, getHierarchy, getItem, getLocales } from "./api";
-import { createAutocomplete } from "./autocomplete";
+import { createAutocomplete, type Autocomplete } from "./autocomplete";
 import { renderBreadcrumbs } from "./breadcrumbs";
 import { copyToClipboard, renderJsonTree } from "./json-tree";
 import { getLocale, setLocale } from "./prefs";
@@ -13,6 +13,7 @@ const detailEl = document.getElementById("detail") as HTMLElement;
 
 const emptyStateHtml = detailEl.innerHTML;
 let currentId: string | null = null;
+let autocomplete: Autocomplete;
 
 function navigate(id: string): void {
     history.pushState(null, "", `/item/${id}`);
@@ -47,8 +48,14 @@ function route(): void {
     const match = location.pathname.match(/^\/item\/([^/]+)$/);
     if (match) {
         loadItem(decodeURIComponent(match[1]!));
-    } else {
-        showHome();
+        return;
+    }
+    showHome();
+
+    const q = new URLSearchParams(location.search).get("q");
+    if (q) {
+        searchInput.value = q;
+        autocomplete.search();
     }
 }
 
@@ -159,7 +166,7 @@ function boot(): void {
         if (currentId) loadItem(currentId);
     });
 
-    createAutocomplete(searchInput, searchList, {
+    autocomplete = createAutocomplete(searchInput, searchList, {
         getLocale: () => localeSelect.value || getLocale(),
         onSelect: navigate,
     });

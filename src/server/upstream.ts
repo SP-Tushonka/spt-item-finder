@@ -76,7 +76,10 @@ export class Upstream implements UpstreamSource {
             const res = await fetch(
                 `https://api.github.com/repos/${this.cfg.repo}/commits/${this.cfg.branch}`,
                 {
-                    headers: { Accept: "application/vnd.github.sha", "User-Agent": "sp-tarkov-db" },
+                    headers: {
+                        Accept: "application/vnd.github.sha",
+                        "User-Agent": "sp-tushonka-db",
+                    },
                 },
             );
             if (!res.ok) return null;
@@ -102,7 +105,7 @@ export class Upstream implements UpstreamSource {
                 {
                     headers: {
                         Accept: "application/vnd.github+json",
-                        "User-Agent": "sp-tarkov-db",
+                        "User-Agent": "sp-tushonka-db",
                     },
                 },
             );

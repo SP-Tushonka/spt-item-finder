@@ -129,6 +129,43 @@ describe("POST /api/refresh", () => {
     });
 });
 
+describe("GET /health", () => {
+    test("reports the loaded snapshot", async () => {
+        const res = await api("/health");
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { status: string; sha: string };
+        expect(body.status).toBe("ok");
+        expect(body.sha).toBe(catalog.meta.sha);
+    });
+});
+
+describe("legacy /search URLs", () => {
+    const noFollow = (path: string) => api(path, { redirect: "manual" });
+
+    test("redirects an item ID to its item page", async () => {
+        const res = await noFollow(`/search/${IDS.waterRation}`);
+        expect(res.status).toBe(301);
+        expect(res.headers.get("location")).toBe(`/item/${IDS.waterRation}`);
+    });
+
+    test("lowercases the ID before matching", async () => {
+        const res = await noFollow(`/search/${IDS.waterRation.toUpperCase()}`);
+        expect(res.headers.get("location")).toBe(`/item/${IDS.waterRation}`);
+    });
+
+    test("sends anything else to the search page", async () => {
+        const res = await noFollow("/search/water%20ration");
+        expect(res.status).toBe(302);
+        expect(res.headers.get("location")).toBe("/?q=water%20ration");
+    });
+
+    test("redirects a bare /search home", async () => {
+        const res = await noFollow("/search");
+        expect(res.status).toBe(301);
+        expect(res.headers.get("location")).toBe("/");
+    });
+});
+
 describe("unknown API paths", () => {
     test("return JSON 404s", async () => {
         const res = await api("/api/nope");

@@ -2,7 +2,7 @@
 
 Search every item template in the [SPT](https://sp-tarkov.com) server database and inspect its raw JSON: names, IDs, `_props`, handbook prices, and parent hierarchy, in all 17 game locales.
 
-A ground-up rebuild of [sp-tarkov/db-website](https://github.com/sp-tarkov/db-website) on a deliberately small stack: **Bun only, zero runtime dependencies**. `Bun.serve` handles routing and bundles the vanilla-TypeScript frontend from an HTML import; item data is fetched straight from the [server-csharp](https://github.com/sp-tarkov/server-csharp) repo over HTTPS (including the Git-LFS `items.json`, which is resolved via SPT's LFS server, so no git or git-lfs is required).
+A ground-up rebuild of [sp-tarkov/db-website](https://github.com/sp-tarkov/db-website) on a deliberately small stack: **Bun only, zero runtime dependencies**. `Bun.serve` handles routing and bundles the vanilla-TypeScript frontend from an HTML import; item data is fetched straight from the [server-csharp](https://github.com/SP-Tushonka/server-csharp) repo over HTTPS (including the Git-LFS `items.json`, which is resolved via the SP-Tushonka LFS server, so no git or git-lfs is required).
 
 ## Run
 
@@ -30,6 +30,7 @@ bun run typecheck
 | `GET /api/item/:id/hierarchy?locale=<code>` | Root-first parent chain                                                    |
 | `GET /api/locales`                          | Available data locales                                                     |
 | `POST /api/refresh?force=1`                 | Re-sync from upstream (no-op unless the upstream commit changed)           |
+| `GET /health`                               | Snapshot SHA and fetch time; also the container healthcheck                |
 
 Item pages are served with per-item `<title>`, meta description, canonical, and Open Graph tags (so shared links embed properly), unknown item IDs return real 404s, and `/sitemap.xml` + `/robots.txt` cover every item for crawlers.
 
@@ -41,7 +42,7 @@ GHCR via `.github/workflows/build.yaml`. On a server, pull it with a compose fil
 ```yaml
 services:
     app:
-        image: ghcr.io/OWNER/sp-tarkov-db:latest
+        image: ghcr.io/sp-tushonka/spt-item-finder:latest
         ports:
             - "3000:3000"
         environment:

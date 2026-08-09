@@ -1,0 +1,22 @@
+version: 2
+updates:
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      groups:
+          actions:
+              patterns: ["*"]
+
+    - package-ecosystem: "bun"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      groups:
+          dev-dependencies:
+              patterns: ["*"]
+
+    - package-ecosystem: "docker"
+      directory: "/"
+      schedule:
+          interval: "weekly"

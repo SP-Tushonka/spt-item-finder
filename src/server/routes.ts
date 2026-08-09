@@ -6,6 +6,18 @@ function jsonError(status: number, message: string): Response {
     return Response.json({ error: message }, { status });
 }
 
+function redirect(location: string, status: 301 | 302): Response {
+    return new Response(null, { status, headers: { location } });
+}
+
+function decodeSegment(segment: string): string {
+    try {
+        return decodeURIComponent(segment);
+    } catch {
+        return segment;
+    }
+}
+
 export function apiRoutes(catalog: Catalog, cfg: Config) {
     const requireLocale = (url: URL): string | Response => {
         const locale = url.searchParams.get("locale") ?? "en";
@@ -71,5 +83,27 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
         },
 
         "/api/*": () => jsonError(404, "not found"),
+
+        "/health": {
+            GET() {
+                return Response.json({
+                    status: "ok",
+                    sha: catalog.meta.sha,
+                    fetchedAt: catalog.meta.fetchedAt,
+                });
+            },
+        },
+
+        "/search/:query": {
+            GET(req: BunRequest<"/search/:query">) {
+                const query = decodeSegment(req.params.query).trim();
+                const id = query.toLowerCase();
+                return catalog.getItem(id, "en")
+                    ? redirect(`/item/${id}`, 301)
+                    : redirect(`/?q=${encodeURIComponent(query)}`, 302);
+            },
+        },
+
+        "/search": () => redirect("/", 301),
     };
 }

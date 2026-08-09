@@ -90,5 +90,5 @@ if (import.meta.main) {
     }
     catalog.startAutoRefresh();
     const server = createServer(catalog, cfg);
-    console.log(`sp-tarkov-db listening on ${server.url} (data ${catalog.meta.sha.slice(0, 8)})`);
+    console.log(`sp-tushonka-db listening on ${server.url} (data ${catalog.meta.sha.slice(0, 8)})`);
 }

@@ -19,10 +19,10 @@ export function loadConfig(env: Record<string, string | undefined> = Bun.env): C
         dataDir: env.DATA_DIR || "./data",
         refreshToken: env.REFRESH_TOKEN || null,
         refreshIntervalHours: intOr(env.REFRESH_INTERVAL_HOURS, 24),
-        repo: env.UPSTREAM_REPO || "sp-tarkov/server-csharp",
+        repo: env.UPSTREAM_REPO || "SP-Tushonka/server-csharp",
         branch: env.UPSTREAM_BRANCH || "main",
         dbPath: env.UPSTREAM_DB_PATH || "Libraries/SPTarkov.Server.Assets/SPT_Data/database",
-        lfsBaseUrl: env.LFS_BASE_URL || "https://spt-lfs.sp-tarkov.com/sp-tarkov/server-csharp",
+        lfsBaseUrl: env.LFS_BASE_URL || "https://lfs.sp-tushonka.com/sp-tushonka/server-csharp",
         production: env.NODE_ENV === "production",
     };
 }

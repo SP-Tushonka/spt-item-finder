@@ -10,11 +10,15 @@ interface AutocompleteOptions {
     onSelect: (id: string) => void;
 }
 
+export interface Autocomplete {
+    search: () => void;
+}
+
 export function createAutocomplete(
     input: HTMLInputElement,
     listbox: HTMLUListElement,
     opts: AutocompleteOptions,
-): void {
+): Autocomplete {
     let results: SearchResult[] = [];
     let active = -1;
     let controller: AbortController | null = null;
@@ -150,4 +154,11 @@ export function createAutocomplete(
         input.setAttribute("aria-expanded", "false");
         input.setAttribute("aria-activedescendant", "");
     }
+
+    return {
+        search: () => {
+            if (timer) clearTimeout(timer);
+            void query();
+        },
+    };
 }
