@@ -79,7 +79,7 @@ All optional; see `.env.example`. Highlights:
 - `SITE_URL`: public base URL, used in canonical/Open Graph tags, `sitemap.xml`, and `robots.txt`. Set it in production.
 - `REFRESH_TOKEN`: when set, `POST /api/refresh` requires `Authorization: Bearer <token>`. Set it in production.
 - `REFRESH_INTERVAL_HOURS`: automatic upstream check interval (default 24; `0` disables).
-- `SPT_LINES`: SPT release lines to index, newest first (default `4.1,4.0`). One vanilla snapshot is fetched per line.
+- `SPT_VERSIONS`: SPT versions to index, newest first (default `4.1,4.0`). One vanilla snapshot is fetched per version.
 - `GITHUB_TOKEN`: read-only token for reading mod repositories. **Required for mod syncing** — unauthenticated GitHub allows 60 requests an hour, which is not enough to finish a sync. A classic token with no scopes is enough.
 - `MOD_SYNC_INTERVAL_HOURS`: how often to sync mods (default 24; `0` disables mods entirely). With syncing on, an empty database triggers a full sync at startup, in the background.
 - `MOD_MIN_DOWNLOADS`: lifetime downloads a mod needs before it is indexed (default 2000).

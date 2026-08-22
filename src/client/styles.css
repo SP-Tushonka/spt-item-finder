@@ -30,7 +30,7 @@ body {
     color: var(--text);
     font-family: var(--font-mono);
     font-size: 16px;
-    sptversion-height: 1.55;
+    line-height: 1.55;
 }
 
 :focus-visible {
@@ -311,7 +311,7 @@ main {
 
 .tree {
     font-size: 0.95rem;
-    sptversion-height: 1.7;
+    line-height: 1.7;
     padding: 1rem 1.5rem 1.25rem;
     overflow-x: auto;
 }
@@ -592,4 +592,59 @@ main {
     margin-left: 0.5rem;
     color: var(--accent);
     font-size: 0.78rem;
+}
+
+.mods-expand {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mods-expand::before {
+    content: "▸ ";
+    color: var(--muted);
+}
+
+.mods-expand.mods-open::before {
+    content: "▾ ";
+}
+
+.mods-forge {
+    margin-left: 0.6rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.mods-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0 1.5rem;
+    margin: 0 0 0.5rem 1.6rem;
+    max-height: 18rem;
+    overflow-y: auto;
+}
+
+.mods-table td:has(> .mods-items) {
+    white-space: normal;
+    padding-right: 0;
+}
+
+.mod-item {
+    color: var(--accent);
+    font-size: 0.82rem;
+    padding: 0.12rem 0.3rem;
+    border-radius: 3px;
+    overflow: hidden;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mod-item:hover {
+    background: var(--hover);
+    text-decoration: underline;
 }

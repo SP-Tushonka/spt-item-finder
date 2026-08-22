@@ -173,3 +173,15 @@ describe("unknown API paths", () => {
         expect(await res.json()).toEqual({ error: "not found" });
     });
 });
+
+describe("GET /api/versions", () => {
+    // The snapshots exist whether or not any mod has been indexed against them.
+    test("lists the SPT versions the catalogue loaded", async () => {
+        const body = (await (await api("/api/versions")).json()) as {
+            sptVersions: string[];
+            default: string;
+        };
+        expect(body.sptVersions).toEqual(["4.1"]);
+        expect(body.default).toBe("4.1");
+    });
+});

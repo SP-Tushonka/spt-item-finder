@@ -300,7 +300,7 @@ export class ModRegistry {
     ): SearchRow[] {
         const rows = this.db
             .query<RawItemRow, [string, string]>(
-                `SELECT i.item_id, i.locales, m.id AS mod_id, m.name AS mod_name, m.slug AS mod_slug,
+                `SELECT i.item_id, i.locales, i.props, m.id AS mod_id, m.name AS mod_name, m.slug AS mod_slug,
                         m.detail_url, m.binds_profile, c.version, i.spt_version, c.ref_kind
                  FROM mod_item i
                  JOIN current_scan c ON c.version_id = i.version_id AND c.spt_version = i.spt_version
@@ -312,10 +312,11 @@ export class ModRegistry {
 
         return rows.map((row) => {
             const entry = localeEntry(row.locales, locale);
+            const props = entry?.Name ? undefined : propsNames(row.props);
             return {
                 itemId: row.item_id,
-                name: entry?.Name ?? row.item_id,
-                shortName: entry?.ShortName ?? "",
+                name: entry?.Name || props?.Name || row.item_id,
+                shortName: entry?.ShortName || props?.ShortName || "",
                 mod: modRef(row),
                 version: row.version,
                 sptVersion: row.spt_version,
@@ -331,6 +332,13 @@ export class ModRegistry {
             seen.add(row.itemId);
             return true;
         });
+    }
+
+    /** Items one mod contributes, for listing them under its row. */
+    modItems(modId: number, sptVersion: string, locale = "en"): SearchRow[] {
+        return this.searchRowsFor(sptVersion, sptVersion, locale)
+            .filter((row) => row.mod.id === modId)
+            .sort((a, b) => a.name.localeCompare(b.name));
     }
 
     item(itemId: string, sptVersion: string, modId?: number): StoredItem | null {
@@ -546,6 +554,16 @@ function modRef(row: RawItemRow): ModRef {
 function localeEntry(json: string, locale: string): LocaleEntry | undefined {
     const parsed = JSON.parse(json) as Record<string, LocaleEntry>;
     return parsed[locale] ?? parsed.en;
+}
+
+// Mods that name items only in the template ship no locale table; the template name beats a bare id.
+function propsNames(json?: string | null): { Name?: string; ShortName?: string } | undefined {
+    if (!json) return undefined;
+    const props = JSON.parse(json) as Record<string, unknown>;
+    return {
+        Name: typeof props.Name === "string" ? props.Name : undefined,
+        ShortName: typeof props.ShortName === "string" ? props.ShortName : undefined,
+    };
 }
 
 function toStoredItem(row: RawItemRow): StoredItem {

@@ -3,6 +3,7 @@ import type {
     ItemDetail,
     SptVersionsResponse,
     LocalesResponse,
+    ModItemsResponse,
     ModsResponse,
     SearchResponse,
 } from "../shared/types";
@@ -63,6 +64,14 @@ export function getHierarchy(
     sptVersion: string,
 ): Promise<HierarchyResponse> {
     return get(`/api/item/${encodeURIComponent(id)}/hierarchy?${params(locale, sptVersion)}`);
+}
+
+export function getModItems(
+    modId: number,
+    locale: string,
+    sptVersion: string,
+): Promise<ModItemsResponse> {
+    return get(`/api/mods/${modId}/items?${params(locale, sptVersion)}`);
 }
 
 export function getMods(sptVersion: string): Promise<ModsResponse> {

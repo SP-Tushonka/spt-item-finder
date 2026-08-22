@@ -1,4 +1,12 @@
-import { ApiError, getHierarchy, getItem, getSptVersions, getLocales, getMods } from "./api";
+import {
+    ApiError,
+    getHierarchy,
+    getItem,
+    getModItems,
+    getMods,
+    getSptVersions,
+    getLocales,
+} from "./api";
 import { createAutocomplete, type Autocomplete } from "./autocomplete";
 import { renderBreadcrumbs } from "./breadcrumbs";
 import { copyToClipboard, renderJsonTree } from "./json-tree";
@@ -293,6 +301,27 @@ function cell(row: HTMLTableRowElement, text: string, className?: string): HTMLT
     return td;
 }
 
+function allToggle(mods: ImportedMod[], disabled: Set<number>, modsOn: boolean): HTMLInputElement {
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.disabled = !modsOn;
+    const off = mods.filter((mod) => disabled.has(mod.id)).length;
+    box.checked = off === 0;
+    box.indeterminate = off > 0 && off < mods.length;
+    box.title = !modsOn ? "Mods are switched off" : off === 0 ? "Switch all off" : "Switch all on";
+    box.addEventListener("change", () => {
+        // Mods absent from this SPT version keep whatever state they already had.
+        const next = getDisabledMods();
+        for (const mod of mods) {
+            if (box.checked) next.delete(mod.id);
+            else next.add(mod.id);
+        }
+        setDisabledMods(next);
+        loadMods();
+    });
+    return box;
+}
+
 function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }): void {
     document.title = "Imported mods · SPT Item Finder";
     crumbsEl.hidden = true;
@@ -342,7 +371,8 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
     const headRow = document.createElement("tr");
     for (const label of ["On", "Mod", "Category", "SPT", "Version", "Items", "Read"]) {
         const th = document.createElement("th");
-        th.textContent = label;
+        if (label === "On") th.appendChild(allToggle(mods, disabled, modsOn));
+        else th.textContent = label;
         headRow.appendChild(th);
     }
     thead.appendChild(headRow);
@@ -378,13 +408,24 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
 
                 const nameCell = document.createElement("td");
                 nameCell.rowSpan = mod.sptVersions.length;
-                const link = document.createElement("a");
-                link.href = mod.detailUrl;
-                link.target = "_blank";
-                link.rel = "noreferrer noopener";
-                link.textContent = mod.name;
-                nameCell.appendChild(link);
+
+                const toggle = document.createElement("button");
+                toggle.type = "button";
+                toggle.className = "mods-expand";
+                toggle.textContent = mod.name;
+                toggle.title = `Show the items ${mod.name} adds`;
+                nameCell.appendChild(toggle);
+
+                const forge = document.createElement("a");
+                forge.className = "mods-forge";
+                forge.href = mod.detailUrl;
+                forge.target = "_blank";
+                forge.rel = "noreferrer noopener";
+                forge.textContent = "Forge";
+                nameCell.appendChild(forge);
                 row.appendChild(nameCell);
+
+                toggle.addEventListener("click", () => toggleItems(mod, body, row, toggle));
 
                 const categoryCell = cell(row, mod.category ?? "—", "mods-dim");
                 categoryCell.rowSpan = mod.sptVersions.length;
@@ -433,5 +474,56 @@ async function loadSptVersions(): Promise<void> {
               : sptVersions[0]!;
     } catch {
         // Keep the static option; the server will fall back to its own default.
+    }
+}
+
+/** Fetched on first open: a mod's item list is far too big to send with the page. */
+async function toggleItems(
+    mod: ImportedMod,
+    body: HTMLTableSectionElement,
+    after: HTMLTableRowElement,
+    toggle: HTMLButtonElement,
+): Promise<void> {
+    const existing = body.querySelector<HTMLTableRowElement>(`tr[data-items="${mod.id}"]`);
+    if (existing) {
+        existing.remove();
+        toggle.classList.remove("mods-open");
+        return;
+    }
+
+    const row = document.createElement("tr");
+    row.dataset.items = String(mod.id);
+    const cell = document.createElement("td");
+    cell.colSpan = 7;
+    // A flex td drops out of the table's column sizing, so the list lives in a div inside it.
+    const list = document.createElement("div");
+    list.className = "mods-items";
+    list.textContent = "Loading…";
+    cell.appendChild(list);
+    row.appendChild(cell);
+    after.after(row);
+    toggle.classList.add("mods-open");
+
+    try {
+        const { items } = await getModItems(mod.id, localeSelect.value, sptSelect.value);
+        list.textContent = "";
+        if (items.length === 0) {
+            list.textContent = "No items on this SPT version.";
+            return;
+        }
+        for (const item of items) {
+            const link = document.createElement("a");
+            link.className = "mod-item";
+            link.href = `/item/${item.id}${sptQuery()}`;
+            link.textContent = item.name;
+            link.title = item.shortName ? `${item.shortName} · ${item.id}` : item.id;
+            link.addEventListener("click", (event) => {
+                event.preventDefault();
+                navigate(item.id);
+            });
+            list.appendChild(link);
+        }
+    } catch (err) {
+        list.textContent = `Could not load items: ${err instanceof Error ? err.message : err}`;
     }
 }

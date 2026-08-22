@@ -11,9 +11,9 @@ services:
             GITHUB_TOKEN: ${GITHUB_TOKEN:-}
             MOD_SYNC_INTERVAL_HOURS: ${MOD_SYNC_INTERVAL_HOURS:-24}
             MOD_MIN_DOWNLOADS: ${MOD_MIN_DOWNLOADS:-2000}
-            SPT_LINES: ${SPT_LINES:-4.1,4.0}
+            SPT_VERSIONS: ${SPT_VERSIONS:-4.1,4.0}
         volumes:
-            # A vanilla snapshot per line is ~70MB, plus the mod database.
+            # A vanilla snapshot per SPT version is ~70MB, plus the mod database.
             - data:/app/data
         restart: unless-stopped
 

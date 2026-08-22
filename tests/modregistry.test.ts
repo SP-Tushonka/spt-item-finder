@@ -253,6 +253,31 @@ describe("searchRows", () => {
         expect(registry.searchRows("4.1").map((r) => r.itemId)).toEqual([B]);
     });
 
+    // Some mods name items only in the template and ship no locale file at all.
+    test("falls back to the template name when the mod has no locales", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [
+            candidate(A, {
+                locales: undefined,
+                props: { Name: "12x70 Breaching Round", ShortName: "12x70" },
+            }),
+        ]);
+        const row = registry.searchRows("4.1")[0];
+        expect(row?.name).toBe("12x70 Breaching Round");
+        expect(row?.shortName).toBe("12x70");
+    });
+
+    test("falls back to the item id when there is no name anywhere", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [
+            candidate(A, {
+                locales: { en: { Name: "", ShortName: "", Description: "" } },
+                props: {},
+            }),
+        ]);
+        expect(registry.searchRows("4.1")[0]?.name).toBe(A);
+    });
+
     test("falls back to English when the locale is missing", () => {
         registry.upsertMods([mod()]);
         registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);

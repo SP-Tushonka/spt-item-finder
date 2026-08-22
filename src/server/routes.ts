@@ -96,6 +96,19 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
             },
         },
 
+        "/api/mods/:id/items": {
+            GET(req: BunRequest<"/api/mods/:id/items">) {
+                const url = new URL(req.url);
+                const locale = requireLocale(url);
+                if (locale instanceof Response) return locale;
+                const modId = Number.parseInt(req.params.id, 10);
+                if (!Number.isFinite(modId)) return jsonError(400, "bad mod id");
+                return Response.json({
+                    items: catalog.modItems(modId, sptVersionOf(url), locale),
+                });
+            },
+        },
+
         "/api/locales": {
             GET() {
                 return Response.json({ locales: catalog.localeCodes(), default: "en" });
@@ -105,7 +118,7 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
         "/api/versions": {
             GET() {
                 return Response.json({
-                    sptVersions: catalog.modSptVersions(),
+                    sptVersions: catalog.sptVersions(),
                     default: catalog.defaultSptVersion(),
                 });
             },

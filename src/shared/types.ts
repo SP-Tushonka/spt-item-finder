@@ -59,6 +59,10 @@ export interface SptVersionsResponse {
     default: string;
 }
 
+export interface ModItemsResponse {
+    items: SearchResult[];
+}
+
 export interface ModsResponse {
     mods: ImportedMod[];
     totals: { mods: number; items: number };

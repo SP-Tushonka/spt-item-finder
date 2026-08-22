@@ -380,6 +380,15 @@ export class Catalog {
         return this.data(sptVersion).itemTpl;
     }
 
+    modItems(modId: number, sptVersion: string, locale = "en"): SearchResult[] {
+        return (this.mods?.modItems(modId, sptVersion, locale) ?? []).map((row) => ({
+            id: row.itemId,
+            name: row.name,
+            shortName: row.shortName || null,
+            description: null,
+        }));
+    }
+
     modSptVersions(): string[] {
         return this.mods?.sptVersions() ?? [];
     }
