@@ -101,7 +101,9 @@ describe("gateMod", () => {
     test("honours a custom gate", () => {
         const quiet = mod({ downloads: 10, versions: BACKPORT_VERSIONS });
         expect(gateMod(quiet, { minDownloads: 0, sptVersions: ["4.1"] })).not.toBeNull();
-        expect(Object.keys(gateMod(quiet, { minDownloads: 0, sptVersions: ["4.1"] })!.versionByLine)) //
+        expect(
+            Object.keys(gateMod(quiet, { minDownloads: 0, sptVersions: ["4.1"] })!.versionByLine),
+        ) //
             .toEqual(["4.1"]);
     });
 
