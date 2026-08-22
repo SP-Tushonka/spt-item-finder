@@ -1,7 +1,18 @@
 // Collapsible JSON tree. Containers render only a summary row up front; child
 // DOM is built on first expand, which keeps huge item _props instant.
 
-export function renderJsonTree(container: HTMLElement, value: unknown): void {
+/** Value to the mod that contributed it, so a filter entry can name its source. */
+let modded: Record<string, string> = {};
+let expandAll = false;
+
+export function renderJsonTree(
+    container: HTMLElement,
+    value: unknown,
+    moddedValues: Record<string, string> = {},
+    expanded = false,
+): void {
+    modded = moddedValues;
+    expandAll = expanded;
     container.textContent = "";
     container.appendChild(renderNode(null, value, 0));
 }
@@ -40,6 +51,14 @@ function containerNode(
         ? `[…] ${entries.length} ${entries.length === 1 ? "item" : "items"}`
         : `{…} ${entries.length} ${entries.length === 1 ? "key" : "keys"}`;
     summary.appendChild(preview);
+
+    const fromMods = entries.filter(([, v]) => typeof v === "string" && modded[v]).length;
+    if (fromMods > 0) {
+        const tag = document.createElement("span");
+        tag.className = "j-modded-count";
+        tag.textContent = `+${fromMods} from mods`;
+        summary.appendChild(tag);
+    }
     summary.appendChild(copyButton(value));
     details.appendChild(summary);
 
@@ -60,7 +79,7 @@ function containerNode(
     });
 
     // Shallow levels start expanded, except the huge _props bag.
-    if (depth < 2 && key !== "_props" && entries.length > 0) {
+    if (expandAll ? entries.length > 0 : depth < 2 && key !== "_props" && entries.length > 0) {
         renderChildren();
         details.open = true;
     }
@@ -80,6 +99,7 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
         row.appendChild(document.createTextNode(": "));
     }
 
+    const source = typeof value === "string" ? modded[value] : undefined;
     const valueSpan = document.createElement("span");
     if (typeof value === "string") {
         valueSpan.className = "j-str";
@@ -95,6 +115,14 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
         valueSpan.textContent = "null";
     }
     row.appendChild(valueSpan);
+
+    if (source) {
+        row.classList.add("j-modded");
+        const by = document.createElement("span");
+        by.className = "j-modded-by";
+        by.textContent = source;
+        row.appendChild(by);
+    }
     return row;
 }
 

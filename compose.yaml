@@ -7,8 +7,14 @@ services:
             SITE_URL: ${SITE_URL:-http://localhost:3000}
             REFRESH_TOKEN: ${REFRESH_TOKEN:-}
             REFRESH_INTERVAL_HOURS: ${REFRESH_INTERVAL_HOURS:-24}
+            # Without a token the mod sync gets 60 GitHub requests an hour and cannot finish.
+            GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+            MOD_SYNC_INTERVAL_HOURS: ${MOD_SYNC_INTERVAL_HOURS:-24}
+            MOD_MIN_DOWNLOADS: ${MOD_MIN_DOWNLOADS:-2000}
+            SPT_LINES: ${SPT_LINES:-4.1,4.0}
         volumes:
-            - data:/app/data # the ~20MB upstream snapshot survives restarts and rebuilds
+            # A vanilla snapshot per line is ~70MB, plus the mod database.
+            - data:/app/data
         restart: unless-stopped
 
     # Local development with hot reload: docker compose --profile dev up dev
@@ -24,6 +30,8 @@ services:
             - data:/app/data
         environment:
             DATA_DIR: /app/data
+            GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+            MOD_SYNC_INTERVAL_HOURS: ${MOD_SYNC_INTERVAL_HOURS:-0}
 
 volumes:
     data:

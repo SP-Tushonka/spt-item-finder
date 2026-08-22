@@ -18,21 +18,42 @@
         "_name": "emergency_water_ration",
         "_parent": "5448e8d04bdc2ddf718b4569",
         "_type": "Item",
-        "_props": { "Weight": 0.5, "StackMaxSize": 1 }
+        "_props": {
+            "Weight": 0.5,
+            "StackMaxSize": 1
+        }
     },
     "5448fee04bdc2dbc018b4567": {
         "_id": "5448fee04bdc2dbc018b4567",
         "_name": "bottle_of_water",
         "_parent": "5448e8d04bdc2ddf718b4569",
         "_type": "Item",
-        "_props": { "Weight": 0.65, "StackMaxSize": 1 }
+        "_props": {
+            "Weight": 0.65,
+            "StackMaxSize": 1
+        }
     },
     "aaaaaaaaaaaaaaaaaaaaaaaa": {
         "_id": "aaaaaaaaaaaaaaaaaaaaaaaa",
         "_name": "orphan_item",
         "_parent": "ffffffffffffffffffffffff",
         "_type": "Item",
-        "_props": {}
+        "_props": {
+            "Slots": [
+                {
+                    "_name": "mod_stock",
+                    "_props": {
+                        "filters": [
+                            {
+                                "Filter": [
+                                    "5448fee04bdc2dbc018b4567"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
     },
     "bbbbbbbbbbbbbbbbbbbbbbbb": {
         "_id": "bbbbbbbbbbbbbbbbbbbbbbbb",

@@ -7,6 +7,9 @@ const DEBOUNCE_MS = 250;
 
 interface AutocompleteOptions {
     getLocale: () => string;
+    getSptVersion: () => string;
+    getMods: () => boolean;
+    getDisabled: () => Set<number>;
     onSelect: (id: string) => void;
 }
 
@@ -81,7 +84,14 @@ export function createAutocomplete(
 
         controller = new AbortController();
         try {
-            const response = await searchItems(q, opts.getLocale(), controller.signal);
+            const response = await searchItems(
+                q,
+                opts.getLocale(),
+                opts.getSptVersion(),
+                opts.getMods(),
+                opts.getDisabled(),
+                controller.signal,
+            );
             results = response.results;
             render(results.length === 0 ? "No items match." : null);
         } catch (err) {
@@ -116,6 +126,14 @@ export function createAutocomplete(
                 short.className = "opt-short";
                 short.textContent = result.shortName;
                 li.appendChild(short);
+            }
+
+            if (result.mod) {
+                const badge = document.createElement("span");
+                badge.className = "opt-mod";
+                badge.textContent = result.mod.name;
+                badge.title = `Added by ${result.mod.name} ${result.mod.version} (SPT ${result.mod.sptVersion})`;
+                li.appendChild(badge);
             }
 
             li.addEventListener("mousedown", (event) => event.preventDefault());

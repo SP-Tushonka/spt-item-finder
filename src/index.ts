@@ -27,12 +27,20 @@ export function createServer(catalog: Catalog, cfg: Config) {
             "/item/:id": async (req: BunRequest<"/item/:id">, server) => {
                 const shell = await getShell(server.url);
                 const id = req.params.id;
-                const detail = catalog.getItem(id, "en");
+                const sptVersion =
+                    new URL(req.url).searchParams.get("spt") || catalog.defaultSptVersion();
+                const detail = catalog.getItem(id, "en", sptVersion);
+                // An item only some sptVersions have is its own page; one they share canonicalises
+                // to the bare URL so the two do not compete as duplicates.
+                const suffix =
+                    detail?.mod && sptVersion !== catalog.defaultSptVersion()
+                        ? `?spt=${encodeURIComponent(sptVersion)}`
+                        : "";
                 const html = detail
                     ? injectMeta(shell, {
                           title: `${detail.locale?.Name ?? detail.item._name} · SPT Item Finder`,
                           description: metaDescription(detail),
-                          url: `${cfg.siteUrl}/item/${id}`,
+                          url: `${cfg.siteUrl}/item/${id}${suffix}`,
                       })
                     : shell;
                 return new Response(html, {
@@ -40,12 +48,22 @@ export function createServer(catalog: Catalog, cfg: Config) {
                     headers: { "content-type": "text/html;charset=utf-8" },
                 });
             },
+            "/mods": async (_req: Request, server) =>
+                new Response(
+                    injectMeta(await getShell(server.url), {
+                        title: "Imported mods · SPT Item Finder",
+                        description:
+                            "Every mod whose items are indexed here, with the version each was read from.",
+                        url: `${cfg.siteUrl}/mods`,
+                    }),
+                    { headers: { "content-type": "text/html;charset=utf-8" } },
+                ),
             "/sitemap.xml": () => {
                 if (sitemapCache?.sha !== catalog.meta.sha) {
                     sitemapCache = {
                         sha: catalog.meta.sha,
                         xml: sitemapXml(
-                            catalog.itemIds(),
+                            catalog.sitemapPaths(),
                             cfg.siteUrl,
                             catalog.meta.fetchedAt.slice(0, 10),
                         ),
@@ -91,4 +109,6 @@ if (import.meta.main) {
     catalog.startAutoRefresh();
     const server = createServer(catalog, cfg);
     console.log(`sp-tushonka-db listening on ${server.url} (data ${catalog.meta.sha.slice(0, 8)})`);
+    // Started last, so the port is bound before a sync that can run for an hour.
+    catalog.startModSync();
 }

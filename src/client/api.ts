@@ -1,7 +1,9 @@
 import type {
     HierarchyResponse,
     ItemDetail,
+    SptVersionsResponse,
     LocalesResponse,
+    ModsResponse,
     SearchResponse,
 } from "../shared/types";
 
@@ -26,25 +28,49 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
     return res.json() as Promise<T>;
 }
 
+function params(locale: string, sptVersion: string, without: Set<number> = new Set()): string {
+    const base = `locale=${encodeURIComponent(locale)}&spt=${encodeURIComponent(sptVersion)}`;
+    return without.size > 0 ? `${base}&without=${[...without].join(",")}` : base;
+}
+
 export function searchItems(
     query: string,
     locale: string,
+    sptVersion: string,
+    mods: boolean,
+    without: Set<number>,
     signal?: AbortSignal,
 ): Promise<SearchResponse> {
     return get(
-        `/api/search?q=${encodeURIComponent(query)}&locale=${encodeURIComponent(locale)}`,
+        `/api/search?q=${encodeURIComponent(query)}&${params(locale, sptVersion, without)}` +
+            (mods ? "" : "&mods=0"),
         signal,
     );
 }
 
-export function getItem(id: string, locale: string): Promise<ItemDetail> {
-    return get(`/api/item/${encodeURIComponent(id)}?locale=${encodeURIComponent(locale)}`);
+export function getItem(
+    id: string,
+    locale: string,
+    sptVersion: string,
+    without: Set<number>,
+): Promise<ItemDetail> {
+    return get(`/api/item/${encodeURIComponent(id)}?${params(locale, sptVersion, without)}`);
 }
 
-export function getHierarchy(id: string, locale: string): Promise<HierarchyResponse> {
-    return get(
-        `/api/item/${encodeURIComponent(id)}/hierarchy?locale=${encodeURIComponent(locale)}`,
-    );
+export function getHierarchy(
+    id: string,
+    locale: string,
+    sptVersion: string,
+): Promise<HierarchyResponse> {
+    return get(`/api/item/${encodeURIComponent(id)}/hierarchy?${params(locale, sptVersion)}`);
+}
+
+export function getMods(sptVersion: string): Promise<ModsResponse> {
+    return get(`/api/mods?spt=${encodeURIComponent(sptVersion)}`);
+}
+
+export function getSptVersions(): Promise<SptVersionsResponse> {
+    return get("/api/versions");
 }
 
 export function getLocales(): Promise<LocalesResponse> {

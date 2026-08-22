@@ -1,6 +1,6 @@
 {
     "name": "sp-tushonka-db",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "private": true,
     "type": "module",
     "scripts": {
@@ -11,7 +11,8 @@
         "test": "bun test",
         "typecheck": "bunx tsc --noEmit",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "sync": "bun src/sync.ts"
     },
     "devDependencies": {
         "@types/bun": "^1.3.11",

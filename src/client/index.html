@@ -20,13 +20,25 @@
         <header class="site-header">
             <a class="brand" href="/" id="brand">SPT <span>Item Finder</span></a>
             <nav class="ext-links" aria-label="SPT sites">
+                <a href="/mods" id="mods-link">Mods</a>
                 <a href="https://sp-mod.com/">Forge</a>
                 <a href="https://wiki.sp-tushonka.com">Wiki</a>
             </nav>
             <div class="controls">
+                <select id="spt" aria-label="SPT version">
+                    <option value="4.1">SPT 4.1</option>
+                </select>
                 <select id="locale" aria-label="Item data language">
                     <option value="en">en</option>
                 </select>
+                <label class="toggle" for="mods" title="Include items added by mods in search">
+                    <input id="mods" type="checkbox" checked />
+                    Mods
+                </label>
+                <label class="toggle" for="expand" title="Open every property on an item page">
+                    <input id="expand" type="checkbox" checked />
+                    Expand
+                </label>
             </div>
         </header>
 

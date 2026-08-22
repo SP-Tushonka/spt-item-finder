@@ -154,3 +154,22 @@ describe("snapshot persistence and refresh", () => {
         expect(result.sha).toBe("b".repeat(40));
     });
 });
+
+describe("ItemTpl table", () => {
+    // Mods written in C# say ItemTpl.SOME_GUN; the table that resolves it is per SPT sptVersion.
+    test("is parsed from the snapshot", async () => {
+        const dir2 = mkdtempSync(join(tmpdir(), "sptdb-enum-"));
+        const withEnum = new FixtureSource();
+        withEnum.itemTpl = `public static readonly MongoId SHOTGUN = new MongoId("61f7c9e189e6fb1a5e3ea78d");`;
+        const built = await Catalog.init(testConfig(dir2), withEnum, () => {});
+        expect(built.itemTplEnum().get("SHOTGUN")).toBe("61f7c9e189e6fb1a5e3ea78d");
+        built.close();
+        await rm(dir2, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }).catch(
+            () => {},
+        );
+    });
+
+    test("is empty when the snapshot has none", () => {
+        expect(catalog.itemTplEnum().size).toBe(0);
+    });
+});

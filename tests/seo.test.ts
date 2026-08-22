@@ -41,8 +41,8 @@ describe("escapeHtml", () => {
 
 describe("metaDescription", () => {
     test("uses the locale description with collapsed whitespace", () => {
-        const detail = detailWith({ description: "A kit.\n\nWith  lines." });
-        expect(metaDescription(detail)).toBe("A kit. With lines.");
+        const detail = detailWith({ description: "A kit.\n\nWith  sptVersions." });
+        expect(metaDescription(detail)).toBe("A kit. With sptVersions.");
     });
 
     test("truncates long descriptions with an ellipsis", () => {
@@ -93,7 +93,7 @@ describe("injectMeta", () => {
         expect(hostile).toContain("&lt;script&gt;");
     });
 
-    test("replaces a description tag whose attributes span multiple lines", () => {
+    test("replaces a description tag whose attributes span multiple sptVersions", () => {
         const multilineShell = SHELL.replace(
             '<meta name="description" content="static homepage description" />',
             '<meta\n      name="description"\n      content="static homepage description"\n    />',
@@ -105,7 +105,7 @@ describe("injectMeta", () => {
 });
 
 describe("sitemapXml", () => {
-    const xml = sitemapXml(["aaa", "bbb"], "https://db.example.com/", "2026-07-22");
+    const xml = sitemapXml(["/item/aaa", "/item/bbb"], "https://db.example.com/", "2026-07-22");
 
     test("lists the homepage and every item URL with lastmod", () => {
         expect(xml).toStartWith(`<?xml version="1.0" encoding="UTF-8"?>`);
@@ -114,6 +114,11 @@ describe("sitemapXml", () => {
         expect(xml).toContain("<loc>https://db.example.com/item/bbb</loc>");
         expect(xml.match(/<url>/g)).toHaveLength(3);
         expect(xml).toContain("<lastmod>2026-07-22</lastmod>");
+    });
+
+    test("escapes the query a non-default SPT sptVersion adds", () => {
+        const tagged = sitemapXml(["/item/ccc?spt=4.0"], "https://db.example.com", "2026-07-22");
+        expect(tagged).toContain("<loc>https://db.example.com/item/ccc?spt=4.0</loc>");
     });
 });
 

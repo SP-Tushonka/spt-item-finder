@@ -7,6 +7,8 @@
     --border: #343729;
     --accent: #cbb872;
     --accent-ink: #14160f;
+    --accent-soft: rgb(203 184 114 / 0.09);
+    --accent-soft-hover: rgb(203 184 114 / 0.17);
     --hover: #232619;
     --j-key: #cbb872;
     --j-str: #9db36b;
@@ -28,7 +30,7 @@ body {
     color: var(--text);
     font-family: var(--font-mono);
     font-size: 16px;
-    line-height: 1.55;
+    sptversion-height: 1.55;
 }
 
 :focus-visible {
@@ -36,7 +38,7 @@ body {
     outline-offset: 2px;
 }
 
-/* ---- Header: requisition-form double rule is the page's signature line ---- */
+/* ---- Header: requisition-form double rule is the page's signature sptVersion ---- */
 
 .site-header {
     display: flex;
@@ -309,12 +311,12 @@ main {
 
 .tree {
     font-size: 0.95rem;
-    line-height: 1.7;
+    sptversion-height: 1.7;
     padding: 1rem 1.5rem 1.25rem;
     overflow-x: auto;
 }
 
-/* Vertical guide line down each nesting level. */
+/* Vertical guide sptVersion down each nesting level. */
 .tree details > div {
     border-left: 1px solid var(--border);
     margin-left: 0.45rem;
@@ -439,4 +441,155 @@ main {
     .tree summary::before {
         transition: none;
     }
+}
+
+.opt-mod {
+    margin-left: auto;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.provenance {
+    margin: 0 0 1rem;
+    padding: 0.7rem 0.9rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+}
+
+.provenance-main {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.controls .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--muted, #9aa0a6);
+    cursor: pointer;
+    user-select: none;
+}
+
+.controls .toggle input {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.mods-scroll {
+    overflow-x: auto;
+    padding: 0 1.5rem 1.5rem;
+}
+
+.mods-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+/* The name column absorbs the slack so the data columns stay grouped together. */
+.mods-table th:nth-child(2),
+.mods-table td:nth-child(2) {
+    width: 100%;
+}
+
+.mods-table td:first-child {
+    padding-right: 0.8rem;
+}
+
+.mods-table input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.mods-table tr.mods-off td:not(:first-child) {
+    opacity: 0.4;
+}
+
+/* The header switch is a master: with it off the per-mod ones cannot do anything. */
+.mods-table-off tbody {
+    opacity: 0.45;
+}
+
+.mods-note {
+    margin: 0 1.5rem 0.75rem;
+    padding: 0.5rem 0.7rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.mods-table th {
+    text-align: left;
+    padding: 0.5rem 1.25rem 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--muted, #9aa0a6);
+    white-space: nowrap;
+}
+
+.mods-table td {
+    padding: 0.55rem 1.25rem 0.55rem 0;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* A name spanning two SPT sptVersions centres across them, so the pair reads as one entry. */
+.mods-table td[rowspan] {
+    vertical-align: middle;
+}
+
+.mods-table tbody tr:hover td {
+    background: var(--hover);
+}
+
+.mods-table tr.mods-first td {
+    border-top: 1px solid var(--border);
+}
+
+.mods-table tbody tr:first-child td {
+    border-top: 0;
+}
+
+.mods-table .mods-num {
+    text-align: right;
+}
+
+.mods-table .mods-dim {
+    color: var(--muted, #9aa0a6);
+}
+
+/* Marked like the provenance box: a side rule and a wash of the accent. */
+.j-row.j-modded {
+    border-left: 2px solid var(--accent);
+    border-radius: 0 3px 3px 0;
+    background: var(--accent-soft);
+    padding-left: 0.35rem;
+}
+
+.j-row.j-modded:hover {
+    background: var(--accent-soft-hover);
+}
+
+.j-modded-by {
+    margin-left: 0.5rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--accent-soft-hover);
+    color: var(--accent);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.j-modded-count {
+    margin-left: 0.5rem;
+    color: var(--accent);
+    font-size: 0.78rem;
 }

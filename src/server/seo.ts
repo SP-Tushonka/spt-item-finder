@@ -43,9 +43,10 @@ export function injectMeta(shell: string, meta: PageMeta): string {
         .replace("</head>", `${headExtra}</head>`);
 }
 
-export function sitemapXml(ids: string[], siteUrl: string, lastmod: string): string {
+/** `paths` are site-root-relative, so a modded item can carry its ?spt= sptVersion. */
+export function sitemapXml(paths: string[], siteUrl: string, lastmod: string): string {
     const base = siteUrl.replace(/\/$/, "");
-    const urls = [`${base}/`, ...ids.map((id) => `${base}/item/${id}`)];
+    const urls = [`${base}/`, ...paths.map((path) => `${base}${path}`)];
     const body = urls
         .map((loc) => `  <url><loc>${escapeHtml(loc)}</loc><lastmod>${lastmod}</lastmod></url>`)
         .join("\n");

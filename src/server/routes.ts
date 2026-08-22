@@ -19,6 +19,18 @@ function decodeSegment(segment: string): string {
 }
 
 export function apiRoutes(catalog: Catalog, cfg: Config) {
+    const sptVersionOf = (url: URL): string =>
+        url.searchParams.get("spt") || catalog.defaultSptVersion();
+
+    /** Mods the viewer switched off, as ids; anything unparseable is simply not excluded. */
+    const withoutOf = (url: URL): Set<number> =>
+        new Set(
+            (url.searchParams.get("without") ?? "")
+                .split(",")
+                .map((id) => Number.parseInt(id, 10))
+                .filter(Number.isFinite),
+        );
+
     const requireLocale = (url: URL): string | Response => {
         const locale = url.searchParams.get("locale") ?? "en";
         return catalog.hasLocale(locale) ? locale : jsonError(400, `unknown locale "${locale}"`);
@@ -33,32 +45,69 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
                 if (q.length > 128) return jsonError(400, "query must be at most 128 characters");
                 const locale = requireLocale(url);
                 if (locale instanceof Response) return locale;
-                const { results, truncated } = catalog.search(q, locale);
+                const mods = url.searchParams.get("mods") !== "0";
+                const { results, truncated } = catalog.search(
+                    q,
+                    locale,
+                    50,
+                    mods,
+                    sptVersionOf(url),
+                    withoutOf(url),
+                );
                 return Response.json({ query: q, locale, truncated, results });
             },
         },
 
         "/api/item/:id": {
             GET(req: BunRequest<"/api/item/:id">) {
-                const locale = requireLocale(new URL(req.url));
+                const url = new URL(req.url);
+                const locale = requireLocale(url);
                 if (locale instanceof Response) return locale;
-                const detail = catalog.getItem(req.params.id, locale);
+                const mods = url.searchParams.get("mods") !== "0";
+                const detail = catalog.getItem(
+                    req.params.id,
+                    locale,
+                    sptVersionOf(url),
+                    mods,
+                    withoutOf(url),
+                );
                 return detail ? Response.json(detail) : jsonError(404, "item not found");
             },
         },
 
         "/api/item/:id/hierarchy": {
             GET(req: BunRequest<"/api/item/:id/hierarchy">) {
-                const locale = requireLocale(new URL(req.url));
+                const url = new URL(req.url);
+                const locale = requireLocale(url);
                 if (locale instanceof Response) return locale;
-                const chain = catalog.hierarchy(req.params.id, locale);
+                const chain = catalog.hierarchy(req.params.id, locale, sptVersionOf(url));
                 return chain ? Response.json({ chain }) : jsonError(404, "item not found");
+            },
+        },
+
+        "/api/mods": {
+            GET(req: BunRequest) {
+                const mods = catalog.importedMods(sptVersionOf(new URL(req.url)));
+                const items = mods.reduce(
+                    (sum, mod) => sum + mod.sptVersions.reduce((n, l) => n + l.items, 0),
+                    0,
+                );
+                return Response.json({ mods, totals: { mods: mods.length, items } });
             },
         },
 
         "/api/locales": {
             GET() {
                 return Response.json({ locales: catalog.localeCodes(), default: "en" });
+            },
+        },
+
+        "/api/versions": {
+            GET() {
+                return Response.json({
+                    sptVersions: catalog.modSptVersions(),
+                    default: catalog.defaultSptVersion(),
+                });
             },
         },
 

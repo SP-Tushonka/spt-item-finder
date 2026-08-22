@@ -1,22 +1,44 @@
-import { ApiError, getHierarchy, getItem, getLocales } from "./api";
+import { ApiError, getHierarchy, getItem, getSptVersions, getLocales, getMods } from "./api";
 import { createAutocomplete, type Autocomplete } from "./autocomplete";
 import { renderBreadcrumbs } from "./breadcrumbs";
 import { copyToClipboard, renderJsonTree } from "./json-tree";
-import { getLocale, setLocale } from "./prefs";
-import type { ItemDetail } from "../shared/types";
+import {
+    getDisabledMods,
+    getExpandAll,
+    getSptVersion,
+    getLocale,
+    getModsEnabled,
+    setDisabledMods,
+    setExpandAll,
+    setSptVersion,
+    setLocale,
+    setModsEnabled,
+} from "./prefs";
+import type { ImportedMod, ItemDetail } from "../shared/types";
 
 const searchInput = document.getElementById("q") as HTMLInputElement;
 const searchList = document.getElementById("q-list") as HTMLUListElement;
 const localeSelect = document.getElementById("locale") as HTMLSelectElement;
+const modsToggle = document.getElementById("mods") as HTMLInputElement;
+const sptSelect = document.getElementById("spt") as HTMLSelectElement;
+const expandToggle = document.getElementById("expand") as HTMLInputElement;
 const crumbsEl = document.getElementById("crumbs") as HTMLElement;
 const detailEl = document.getElementById("detail") as HTMLElement;
 
 const emptyStateHtml = detailEl.innerHTML;
 let currentId: string | null = null;
 let autocomplete: Autocomplete;
+let defaultSptVersion = "4.1";
+
+/** Omitted for the default sptVersion so shared links keep their existing shape. */
+function sptQuery(): string {
+    return sptSelect.value && sptSelect.value !== defaultSptVersion
+        ? `?spt=${encodeURIComponent(sptSelect.value)}`
+        : "";
+}
 
 function navigate(id: string): void {
-    history.pushState(null, "", `/item/${id}`);
+    history.pushState(null, "", `/item/${id}${sptQuery()}`);
     loadItem(id);
 }
 
@@ -45,9 +67,19 @@ function showNotice(message: string): void {
 }
 
 function route(): void {
+    // A link carrying ?spt= views that version without overwriting the reader's own preference.
+    const wanted = new URLSearchParams(location.search).get("spt");
+    if (wanted && [...sptSelect.options].some((option) => option.value === wanted)) {
+        sptSelect.value = wanted;
+    }
+
     const match = location.pathname.match(/^\/item\/([^/]+)$/);
     if (match) {
         loadItem(decodeURIComponent(match[1]!));
+        return;
+    }
+    if (location.pathname === "/mods") {
+        loadMods();
         return;
     }
     showHome();
@@ -65,9 +97,10 @@ async function loadItem(id: string): Promise<void> {
 
     const locale = localeSelect.value || getLocale();
     try {
+        const sptVersion = sptSelect.value;
         const [detail, hierarchy] = await Promise.all([
-            getItem(id, locale),
-            getHierarchy(id, locale),
+            getItem(id, locale, sptVersion, getDisabledMods()),
+            getHierarchy(id, locale, sptVersion),
         ]);
         if (currentId !== id) return; // a newer navigation won
         renderDetail(detail);
@@ -135,9 +168,13 @@ function renderDetail(detail: ItemDetail): void {
     head.appendChild(actions);
     card.appendChild(head);
 
+    if (detail.mod) card.appendChild(renderProvenance(detail));
+
     const tree = document.createElement("div");
     tree.className = "tree";
-    renderJsonTree(tree, detail);
+    // The mod attribution drives the highlighting; it is not part of the item's data.
+    const { moddedFilters, ...shown } = detail;
+    renderJsonTree(tree, shown, moddedFilters, expandToggle.checked);
     card.appendChild(tree);
 
     detailEl.appendChild(card);
@@ -166,9 +203,44 @@ function boot(): void {
         if (currentId) loadItem(currentId);
     });
 
+    sptSelect.addEventListener("change", () => {
+        setSptVersion(sptSelect.value);
+        if (currentId) {
+            history.replaceState(null, "", `/item/${currentId}${sptQuery()}`);
+            loadItem(currentId);
+        } else if (location.pathname === "/mods") {
+            loadMods();
+        } else {
+            autocomplete.search();
+        }
+    });
+
+    expandToggle.checked = getExpandAll();
+    expandToggle.addEventListener("change", () => {
+        setExpandAll(expandToggle.checked);
+        if (currentId) loadItem(currentId);
+    });
+
+    modsToggle.checked = getModsEnabled();
+    modsToggle.addEventListener("change", () => {
+        setModsEnabled(modsToggle.checked);
+        if (location.pathname === "/mods") loadMods();
+        else if (currentId) loadItem(currentId);
+        else autocomplete.search();
+    });
+
     autocomplete = createAutocomplete(searchInput, searchList, {
         getLocale: () => localeSelect.value || getLocale(),
+        getSptVersion: () => sptSelect.value,
+        getMods: () => modsToggle.checked,
+        getDisabled: getDisabledMods,
         onSelect: navigate,
+    });
+
+    document.getElementById("mods-link")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        history.pushState(null, "", "/mods");
+        loadMods();
     });
 
     document.getElementById("brand")?.addEventListener("click", (event) => {
@@ -177,7 +249,189 @@ function boot(): void {
     });
 
     window.addEventListener("popstate", route);
-    void populateLocales().then(route);
+    void Promise.all([populateLocales(), loadSptVersions()]).then(route);
 }
 
 boot();
+
+function renderProvenance(detail: ItemDetail): HTMLElement {
+    const mod = detail.mod!;
+    const box = document.createElement("aside");
+    box.className = "provenance";
+
+    const sptVersion = document.createElement("p");
+    sptVersion.className = "provenance-main";
+    sptVersion.append("Added by ");
+    const link = document.createElement("a");
+    link.href = mod.detailUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer noopener";
+    link.textContent = mod.name;
+    sptVersion.appendChild(link);
+    box.appendChild(sptVersion);
+
+    return box;
+}
+
+async function loadMods(): Promise<void> {
+    currentId = null;
+    searchInput.value = "";
+    showNotice("Loading…");
+    try {
+        const { mods, totals } = await getMods(sptSelect.value);
+        renderMods(mods, totals);
+    } catch (err) {
+        showNotice(`Could not load the mod list: ${err instanceof Error ? err.message : err}`);
+    }
+}
+
+function cell(row: HTMLTableRowElement, text: string, className?: string): HTMLTableCellElement {
+    const td = document.createElement("td");
+    td.textContent = text;
+    if (className) td.className = className;
+    row.appendChild(td);
+    return td;
+}
+
+function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }): void {
+    document.title = "Imported mods · SPT Item Finder";
+    crumbsEl.hidden = true;
+    detailEl.textContent = "";
+
+    const card = document.createElement("article");
+    card.className = "item-card";
+
+    const head = document.createElement("header");
+    head.className = "item-head";
+    const titleWrap = document.createElement("div");
+    const title = document.createElement("h1");
+    title.textContent = "Imported mods";
+    titleWrap.appendChild(title);
+    const disabled = getDisabledMods();
+    const modsOn = modsToggle.checked;
+    const sub = document.createElement("p");
+    sub.className = "item-sub";
+    const off = mods.filter((mod) => disabled.has(mod.id)).length;
+    sub.textContent = modsOn
+        ? `${totals.mods} mods · ${totals.items.toLocaleString("en-US")} items` +
+          (off > 0 ? ` · ${off} off` : "")
+        : `${totals.mods} mods · switched off`;
+    titleWrap.appendChild(sub);
+    head.appendChild(titleWrap);
+    card.appendChild(head);
+
+    if (mods.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "notice";
+        empty.textContent = "No mods have been imported yet.";
+        card.appendChild(empty);
+        detailEl.appendChild(card);
+        return;
+    }
+
+    if (!modsOn) {
+        const note = document.createElement("p");
+        note.className = "mods-note";
+        note.textContent = "Mods are off, so none of these are being served. Turn on Mods above.";
+        card.appendChild(note);
+    }
+
+    const table = document.createElement("table");
+    table.className = modsOn ? "mods-table" : "mods-table mods-table-off";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const label of ["On", "Mod", "Category", "SPT", "Version", "Items", "Read"]) {
+        const th = document.createElement("th");
+        th.textContent = label;
+        headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const body = document.createElement("tbody");
+    for (const mod of mods) {
+        mod.sptVersions.forEach((sptVersion, index) => {
+            const row = document.createElement("tr");
+            if (index === 0) row.className = "mods-first";
+            if (disabled.has(mod.id)) row.classList.add("mods-off");
+
+            // A mod on both SPT sptVersions gets one name spanning its rows, rather than a blank cell.
+            if (index === 0) {
+                const toggleCell = document.createElement("td");
+                toggleCell.rowSpan = mod.sptVersions.length;
+                const box = document.createElement("input");
+                box.type = "checkbox";
+                box.checked = !disabled.has(mod.id);
+                box.disabled = !modsOn;
+                box.title = modsOn
+                    ? `Include ${mod.name} in search and on item pages`
+                    : "Mods are switched off";
+                box.addEventListener("change", () => {
+                    const next = getDisabledMods();
+                    if (box.checked) next.delete(mod.id);
+                    else next.add(mod.id);
+                    setDisabledMods(next);
+                    loadMods();
+                });
+                toggleCell.appendChild(box);
+                row.appendChild(toggleCell);
+
+                const nameCell = document.createElement("td");
+                nameCell.rowSpan = mod.sptVersions.length;
+                const link = document.createElement("a");
+                link.href = mod.detailUrl;
+                link.target = "_blank";
+                link.rel = "noreferrer noopener";
+                link.textContent = mod.name;
+                nameCell.appendChild(link);
+                row.appendChild(nameCell);
+
+                const categoryCell = cell(row, mod.category ?? "—", "mods-dim");
+                categoryCell.rowSpan = mod.sptVersions.length;
+            }
+
+            cell(row, sptVersion.sptVersion);
+            cell(row, sptVersion.version);
+            cell(row, sptVersion.items.toLocaleString("en-US"), "mods-num");
+            const read = cell(row, sptVersion.approximate ? "branch" : "release", "mods-dim");
+            read.title = sptVersion.approximate
+                ? `Read from the mod's default branch on ${sptVersion.scannedAt.slice(0, 10)}`
+                : `Read from the tagged release on ${sptVersion.scannedAt.slice(0, 10)}`;
+            body.appendChild(row);
+        });
+    }
+    table.appendChild(body);
+
+    const scroll = document.createElement("div");
+    scroll.className = "mods-scroll";
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    detailEl.appendChild(card);
+}
+
+/** The versions actually indexed come from the server; the stored preference only picks one. */
+async function loadSptVersions(): Promise<void> {
+    try {
+        const { sptVersions, default: fallback } = await getSptVersions();
+        defaultSptVersion = fallback;
+        if (sptVersions.length === 0) {
+            sptSelect.hidden = true;
+            return;
+        }
+        sptSelect.textContent = "";
+        for (const sptVersion of sptVersions) {
+            const option = document.createElement("option");
+            option.value = sptVersion;
+            option.textContent = `SPT ${sptVersion}`;
+            sptSelect.appendChild(option);
+        }
+        const stored = getSptVersion();
+        sptSelect.value = sptVersions.includes(stored)
+            ? stored
+            : sptVersions.includes(fallback)
+              ? fallback
+              : sptVersions[0]!;
+    } catch {
+        // Keep the static option; the server will fall back to its own default.
+    }
+}

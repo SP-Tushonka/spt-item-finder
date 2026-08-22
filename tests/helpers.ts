@@ -16,6 +16,8 @@ export const IDS = {
 
 export class FixtureSource implements UpstreamSource {
     fetchCalls = 0;
+    tags: string[] = [];
+    itemTpl = "";
     constructor(public sha: string = "a".repeat(40)) {}
 
     async latestSha(): Promise<string | null> {
@@ -31,8 +33,21 @@ export class FixtureSource implements UpstreamSource {
     async listLocaleFiles(): Promise<string[]> {
         return ["en.json", "fr.json"];
     }
+
+    async listTags(): Promise<string[]> {
+        return this.tags;
+    }
+
+    async fetchItemTpl(): Promise<string> {
+        return this.itemTpl;
+    }
 }
 
 export function testConfig(dataDir: string, overrides: Record<string, string> = {}): Config {
-    return loadConfig({ DATA_DIR: dataDir, REFRESH_INTERVAL_HOURS: "0", ...overrides });
+    return loadConfig({
+        DATA_DIR: dataDir,
+        REFRESH_INTERVAL_HOURS: "0",
+        SPT_VERSIONS: "4.1",
+        ...overrides,
+    });
 }
