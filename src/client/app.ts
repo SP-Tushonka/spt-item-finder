@@ -332,6 +332,7 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
 
     const rowsByMod = new Map<number, HTMLTableRowElement[]>();
     const boxByMod = new Map<number, HTMLInputElement>();
+    const expandByMod = new Map<number, HTMLButtonElement>();
     const selectAll = bulkButton("Select all");
     const deselectAll = bulkButton("Deselect all");
 
@@ -343,9 +344,22 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
               (off > 0 ? ` · ${off} off` : "")
             : `${totals.mods} mods · switched off`;
         for (const [id, rows] of rowsByMod) {
+            const isOff = !modsOn || disabled.has(id);
             for (const row of rows) row.classList.toggle("mods-off", disabled.has(id));
             const box = boxByMod.get(id);
             if (box) box.checked = !disabled.has(id);
+            const expand = expandByMod.get(id);
+            // An off mod is not served, so its item links would 404.
+            if (expand && expand.disabled !== isOff) {
+                expand.disabled = isOff;
+                expand.title = isOff
+                    ? `${expand.textContent} is switched off`
+                    : `Show the items ${expand.textContent} adds`;
+                if (isOff) {
+                    collapseItems(id, body);
+                    expand.classList.remove("mods-open");
+                }
+            }
         }
         selectAll.disabled = !modsOn || off === 0;
         deselectAll.disabled = !modsOn || off === mods.length;
@@ -448,6 +462,7 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
                 row.appendChild(nameCell);
 
                 toggle.addEventListener("click", () => toggleItems(mod, body, row, toggle));
+                expandByMod.set(mod.id, toggle);
 
                 const categoryCell = cell(row, mod.category ?? "—", "mods-dim");
                 categoryCell.rowSpan = mod.sptVersions.length;
@@ -501,15 +516,19 @@ async function loadSptVersions(): Promise<void> {
 }
 
 /** Fetched on first open: a mod's item list is far too big to send with the page. */
+function collapseItems(modId: number, body: HTMLTableSectionElement): boolean {
+    const open = body.querySelector<HTMLTableRowElement>(`tr[data-items="${modId}"]`);
+    open?.remove();
+    return open !== null;
+}
+
 async function toggleItems(
     mod: ImportedMod,
     body: HTMLTableSectionElement,
     after: HTMLTableRowElement,
     toggle: HTMLButtonElement,
 ): Promise<void> {
-    const existing = body.querySelector<HTMLTableRowElement>(`tr[data-items="${mod.id}"]`);
-    if (existing) {
-        existing.remove();
+    if (collapseItems(mod.id, body)) {
         toggle.classList.remove("mods-open");
         return;
     }

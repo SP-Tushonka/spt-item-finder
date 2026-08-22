@@ -619,6 +619,16 @@ main {
     color: var(--muted);
 }
 
+.mods-expand:disabled {
+    cursor: default;
+    color: var(--text);
+}
+
+/* No dropdown to offer, so drop the marker rather than leave a dead arrow. */
+.mods-expand:disabled::before {
+    content: "";
+}
+
 .mods-bulk {
     display: flex;
     gap: 0.4rem;
