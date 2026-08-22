@@ -301,25 +301,12 @@ function cell(row: HTMLTableRowElement, text: string, className?: string): HTMLT
     return td;
 }
 
-function allToggle(mods: ImportedMod[], disabled: Set<number>, modsOn: boolean): HTMLInputElement {
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.disabled = !modsOn;
-    const off = mods.filter((mod) => disabled.has(mod.id)).length;
-    box.checked = off === 0;
-    box.indeterminate = off > 0 && off < mods.length;
-    box.title = !modsOn ? "Mods are switched off" : off === 0 ? "Switch all off" : "Switch all on";
-    box.addEventListener("change", () => {
-        // Mods absent from this SPT version keep whatever state they already had.
-        const next = getDisabledMods();
-        for (const mod of mods) {
-            if (box.checked) next.delete(mod.id);
-            else next.add(mod.id);
-        }
-        setDisabledMods(next);
-        loadMods();
-    });
-    return box;
+function bulkButton(label: string): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mods-bulk-button";
+    button.textContent = label;
+    return button;
 }
 
 function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }): void {
@@ -340,16 +327,52 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
     const modsOn = modsToggle.checked;
     const sub = document.createElement("p");
     sub.className = "item-sub";
-    const off = mods.filter((mod) => disabled.has(mod.id)).length;
-    sub.textContent = modsOn
-        ? `${totals.mods} mods · ${totals.items.toLocaleString("en-US")} items` +
-          (off > 0 ? ` · ${off} off` : "")
-        : `${totals.mods} mods · switched off`;
     titleWrap.appendChild(sub);
     head.appendChild(titleWrap);
+
+    const rowsByMod = new Map<number, HTMLTableRowElement[]>();
+    const boxByMod = new Map<number, HTMLInputElement>();
+    const selectAll = bulkButton("Select all");
+    const deselectAll = bulkButton("Deselect all");
+
+    // Toggling a mod changes nothing the server holds, so the table is patched rather than rebuilt.
+    const refresh = (): void => {
+        const off = mods.filter((mod) => disabled.has(mod.id)).length;
+        sub.textContent = modsOn
+            ? `${totals.mods} mods · ${totals.items.toLocaleString("en-US")} items` +
+              (off > 0 ? ` · ${off} off` : "")
+            : `${totals.mods} mods · switched off`;
+        for (const [id, rows] of rowsByMod) {
+            for (const row of rows) row.classList.toggle("mods-off", disabled.has(id));
+            const box = boxByMod.get(id);
+            if (box) box.checked = !disabled.has(id);
+        }
+        selectAll.disabled = !modsOn || off === 0;
+        deselectAll.disabled = !modsOn || off === mods.length;
+    };
+
+    const setAll = (on: boolean): void => {
+        // Mods absent from this SPT version keep whatever state they already had.
+        for (const mod of mods) {
+            if (on) disabled.delete(mod.id);
+            else disabled.add(mod.id);
+        }
+        setDisabledMods(disabled);
+        refresh();
+    };
+    selectAll.addEventListener("click", () => setAll(true));
+    deselectAll.addEventListener("click", () => setAll(false));
+
+    if (mods.length > 0) {
+        const bulk = document.createElement("div");
+        bulk.className = "mods-bulk";
+        bulk.append(selectAll, deselectAll);
+        head.appendChild(bulk);
+    }
     card.appendChild(head);
 
     if (mods.length === 0) {
+        refresh();
         const empty = document.createElement("p");
         empty.className = "notice";
         empty.textContent = "No mods have been imported yet.";
@@ -371,8 +394,7 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
     const headRow = document.createElement("tr");
     for (const label of ["On", "Mod", "Category", "SPT", "Version", "Items", "Read"]) {
         const th = document.createElement("th");
-        if (label === "On") th.appendChild(allToggle(mods, disabled, modsOn));
-        else th.textContent = label;
+        th.textContent = label;
         headRow.appendChild(th);
     }
     thead.appendChild(headRow);
@@ -383,7 +405,7 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
         mod.sptVersions.forEach((sptVersion, index) => {
             const row = document.createElement("tr");
             if (index === 0) row.className = "mods-first";
-            if (disabled.has(mod.id)) row.classList.add("mods-off");
+            rowsByMod.set(mod.id, [...(rowsByMod.get(mod.id) ?? []), row]);
 
             // A mod on both SPT sptVersions gets one name spanning its rows, rather than a blank cell.
             if (index === 0) {
@@ -397,12 +419,12 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
                     ? `Include ${mod.name} in search and on item pages`
                     : "Mods are switched off";
                 box.addEventListener("change", () => {
-                    const next = getDisabledMods();
-                    if (box.checked) next.delete(mod.id);
-                    else next.add(mod.id);
-                    setDisabledMods(next);
-                    loadMods();
+                    if (box.checked) disabled.delete(mod.id);
+                    else disabled.add(mod.id);
+                    setDisabledMods(disabled);
+                    refresh();
                 });
+                boxByMod.set(mod.id, box);
                 toggleCell.appendChild(box);
                 row.appendChild(toggleCell);
 
@@ -442,6 +464,7 @@ function renderMods(mods: ImportedMod[], totals: { mods: number; items: number }
         });
     }
     table.appendChild(body);
+    refresh();
 
     const scroll = document.createElement("div");
     scroll.className = "mods-scroll";

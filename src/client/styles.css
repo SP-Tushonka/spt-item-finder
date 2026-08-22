@@ -619,6 +619,34 @@ main {
     color: var(--muted);
 }
 
+.mods-bulk {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.mods-bulk-button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+}
+
+.mods-bulk-button:hover:not(:disabled) {
+    background: var(--hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.mods-bulk-button:disabled {
+    cursor: default;
+    opacity: 0.35;
+}
+
 .mods-items {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
