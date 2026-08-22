@@ -64,12 +64,14 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
                 const locale = requireLocale(url);
                 if (locale instanceof Response) return locale;
                 const mods = url.searchParams.get("mods") !== "0";
+                const modId = Number.parseInt(url.searchParams.get("mod") ?? "", 10);
                 const detail = catalog.getItem(
                     req.params.id,
                     locale,
                     sptVersionOf(url),
                     mods,
                     withoutOf(url),
+                    Number.isFinite(modId) ? modId : undefined,
                 );
                 return detail ? Response.json(detail) : jsonError(404, "item not found");
             },

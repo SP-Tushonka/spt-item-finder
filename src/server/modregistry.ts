@@ -347,21 +347,26 @@ export class ModRegistry {
     }
 
     itemAnyLine(itemId: string, preferredSptVersion: string): StoredItem | null {
-        return (
-            this.db
-                .query<RawItemRow, [string, string]>(
-                    `SELECT i.*, m.id AS mod_id, m.name AS mod_name, m.slug AS mod_slug,
-                            m.detail_url, m.binds_profile, c.version, c.ref_kind
-                     FROM mod_item i
-                     JOIN current_scan c ON c.version_id = i.version_id AND c.spt_version = i.spt_version
-                     JOIN mod m ON m.id = c.mod_id
-                     WHERE i.item_id = ?1 AND ${VISIBLE}
-                     ORDER BY (i.spt_version = ?2) DESC
-                     LIMIT 1`,
-                )
-                .all(itemId, preferredSptVersion)
-                .map(toStoredItem)[0] ?? null
-        );
+        return this.claims(itemId, preferredSptVersion)[0] ?? null;
+    }
+
+    /**
+     * Every mod claiming this id, best first. Two mods can ship the same id, but only one of them
+     * can win at runtime, so the order has to be stable: downloads, then the older mod.
+     */
+    claims(itemId: string, preferredSptVersion: string): StoredItem[] {
+        return this.db
+            .query<RawItemRow, [string, string]>(
+                `SELECT i.*, m.id AS mod_id, m.name AS mod_name, m.slug AS mod_slug,
+                        m.detail_url, m.binds_profile, c.version, c.ref_kind
+                 FROM mod_item i
+                 JOIN current_scan c ON c.version_id = i.version_id AND c.spt_version = i.spt_version
+                 JOIN mod m ON m.id = c.mod_id
+                 WHERE i.item_id = ?1 AND ${VISIBLE}
+                 ORDER BY (i.spt_version = ?2) DESC, m.downloads DESC, m.id ASC`,
+            )
+            .all(itemId, preferredSptVersion)
+            .map(toStoredItem);
     }
 
     items(itemId: string, sptVersion: string): StoredItem[] {

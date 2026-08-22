@@ -54,8 +54,11 @@ export function getItem(
     locale: string,
     sptVersion: string,
     without: Set<number>,
+    modId?: number,
 ): Promise<ItemDetail> {
-    return get(`/api/item/${encodeURIComponent(id)}?${params(locale, sptVersion, without)}`);
+    const query = params(locale, sptVersion, without);
+    const pick = modId === undefined ? "" : `&mod=${modId}`;
+    return get(`/api/item/${encodeURIComponent(id)}?${query}${pick}`);
 }
 
 export function getHierarchy(

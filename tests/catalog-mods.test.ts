@@ -9,6 +9,9 @@ import { ModRegistry } from "../src/server/modregistry";
 import { FixtureSource, IDS, testConfig } from "./helpers";
 
 const MOD_ITEM = "6943c85be2f21398e70378cc";
+const CHAINED_ITEM = "6a4d4d3b4b248ca65d9ee731";
+const DEEP_ITEM = "6a4d4d3b4b248ca65d9ee732";
+const CONTESTED_ITEM = "6a4d4d3b4b248ca65d9ee733";
 
 const MOD: ForgeMod = {
     id: 2512,
@@ -66,6 +69,66 @@ beforeAll(async () => {
             },
         ],
     );
+    // Its own mod: the re-scan test below wipes mod 2512's items, and a clone chain must survive.
+    registry.upsertMods([
+        {
+            ...MOD,
+            id: 3001,
+            name: "Chain Mod",
+            slug: "chain-mod",
+            versions: [{ ...MOD.versions[0]!, id: 30010 }],
+        },
+    ]);
+    registry.recordScan({ versionId: 30010, sptVersion: "4.1", outcome: "items" }, [
+        {
+            id: CHAINED_ITEM,
+            kind: "clone-json",
+            sourcePath: "db/CustomItems/plates.json",
+            cloneOf: MOD_ITEM,
+            parentId: IDS.foodNode,
+            props: { Height: 3 },
+            locales: { en: { Name: "Relayed plate Tan", ShortName: "RP Tan", Description: "" } },
+        },
+        {
+            id: DEEP_ITEM,
+            kind: "clone-json",
+            sourcePath: "db/CustomItems/plates.json",
+            cloneOf: CHAINED_ITEM,
+            parentId: IDS.foodNode,
+            props: { StackMaxSize: 4 },
+            locales: { en: { Name: "Relayed plate Black", ShortName: "RP Blk", Description: "" } },
+        },
+        {
+            id: CONTESTED_ITEM,
+            kind: "clone-json",
+            sourcePath: "db/CustomItems/plates.json",
+            cloneOf: IDS.bottle,
+            parentId: IDS.foodNode,
+            props: { Width: 7 },
+            locales: { en: { Name: "Contested plate", ShortName: "CP", Description: "" } },
+        },
+    ]);
+    registry.upsertMods([
+        {
+            ...MOD,
+            id: 3002,
+            name: "Rival Mod",
+            slug: "rival-mod",
+            downloads: 100,
+            versions: [{ ...MOD.versions[0]!, id: 30020 }],
+        },
+    ]);
+    registry.recordScan({ versionId: 30020, sptVersion: "4.1", outcome: "items" }, [
+        {
+            id: CONTESTED_ITEM,
+            kind: "clone-json",
+            sourcePath: "db/CustomItems/plates.json",
+            cloneOf: IDS.bottle,
+            parentId: IDS.foodNode,
+            props: { Width: 9 },
+            locales: { en: { Name: "Contested plate", ShortName: "CP", Description: "" } },
+        },
+    ]);
     registry.close();
 
     catalog = await Catalog.init(
@@ -175,6 +238,45 @@ describe("modded item detail", () => {
         const detail = catalog.getItem(MOD_ITEM, "en");
         expect(detail?.item._props.Width).toBe(2);
         expect(detail?.cloneOf).toBe(IDS.bottle);
+    });
+
+    // A mod item whose base is another mod item: vanilla alone cannot resolve it.
+    test("a clone of another mod's item still resolves its properties", () => {
+        const detail = catalog.getItem(CHAINED_ITEM, "en");
+        expect(detail?.item._props.Height).toBe(3);
+        expect(detail?.item._props.Width).toBe(2); // from the mod item it clones
+        expect(detail?.item._props.Weight).toBe(0.65); // from vanilla, two hops up
+    });
+
+    test("clone chains resolve to any depth", () => {
+        const detail = catalog.getItem(DEEP_ITEM, "en");
+        expect(detail?.item._props.StackMaxSize).toBe(4);
+        expect(detail?.item._props.Height).toBe(3);
+        expect(detail?.item._props.Width).toBe(2);
+    });
+
+    // Two mods can ship one id, but only one wins in a real install.
+    test("the more popular mod wins a contested id and the other is named", () => {
+        const detail = catalog.getItem(CONTESTED_ITEM, "en");
+        expect(detail?.mod?.name).toBe("Chain Mod"); // 434,494 downloads vs Rival's 100
+        expect(detail?.item._props.Width).toBe(7);
+        expect(detail?.conflicts?.map((c) => c.name)).toEqual(["Rival Mod"]);
+    });
+
+    test("asking for the losing mod serves its own version instead", () => {
+        const detail = catalog.getItem(CONTESTED_ITEM, "en", "4.1", true, undefined, 3002);
+        expect(detail?.mod?.name).toBe("Rival Mod");
+        expect(detail?.item._props.Width).toBe(9);
+        expect(detail?.conflicts?.map((c) => c.name)).toEqual(["Chain Mod"]);
+    });
+
+    test("an unknown mod id falls back to the winner rather than 404ing", () => {
+        expect(catalog.getItem(CONTESTED_ITEM, "en", "4.1", true, undefined, 999)?.mod?.name) //
+            .toBe("Chain Mod");
+    });
+
+    test("an uncontested item carries no conflict list", () => {
+        expect(catalog.getItem(MOD_ITEM, "en")?.conflicts).toBeUndefined();
     });
 
     test("handbook price comes from the mod's own declaration", () => {

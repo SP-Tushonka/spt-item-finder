@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "../config";
-import { ModRegistry, type SlotAddition } from "./modregistry";
+import { ModRegistry, type SlotAddition, type StoredItem } from "./modregistry";
 import { applySlotAdditions, resolveItem } from "./modresolve";
 import { Forge } from "./forge";
-import { parseItemTplEnum } from "./modscan";
+import { parseItemTplEnum, type ItemCandidate } from "./modscan";
 import { GitHubRepoSource } from "./modsource";
 import { syncMods, type SyncOptions, type SyncReport } from "./modsync";
 import type {
@@ -26,6 +26,18 @@ import {
     type SnapshotMeta,
     type UpstreamSource,
 } from "./upstream";
+
+function toCandidate(stored: StoredItem): ItemCandidate {
+    return {
+        id: stored.itemId,
+        kind: stored.kind,
+        sourcePath: stored.sourcePath,
+        cloneOf: stored.cloneOf ?? undefined,
+        parentId: stored.parentId ?? undefined,
+        props: stored.props ?? undefined,
+        locales: stored.locales,
+    };
+}
 
 interface SearchRow {
     id: string;
@@ -211,10 +223,11 @@ export class Catalog {
         sptVersion = this.cfg.defaultSptVersion,
         mods = true,
         without: ReadonlySet<number> = EMPTY,
+        modId?: number,
     ): ItemDetail | null {
         const data = this.data(sptVersion);
         const item = data.items[id];
-        if (!item) return mods ? this.getModItem(id, locale, sptVersion, without) : null;
+        if (!item) return mods ? this.getModItem(id, locale, sptVersion, without, modId) : null;
         const patched = mods
             ? applySlotAdditions(item, this.slotAdditions(sptVersion, without))
             : { item, added: {} };
@@ -260,22 +273,29 @@ export class Catalog {
         locale: string,
         sptVersion: string,
         without: ReadonlySet<number> = EMPTY,
+        modId?: number,
     ): ItemDetail | null {
         // Falls back to another sptVersion rather than 404ing: a shared link should still open, and
         // the mod reference tells the reader which SPT version it came from.
-        const stored = this.mods?.itemAnyLine(id, sptVersion);
+        const claims = this.mods?.claims(id, sptVersion) ?? [];
+        const stored =
+            (modId === undefined ? undefined : claims.find((c) => c.mod.id === modId)) ?? claims[0];
         if (!stored || without.has(stored.mod.id)) return null;
-        const candidate = {
-            id: stored.itemId,
-            kind: stored.kind,
-            sourcePath: stored.sourcePath,
-            cloneOf: stored.cloneOf ?? undefined,
-            parentId: stored.parentId ?? undefined,
-            props: stored.props ?? undefined,
-            locales: stored.locales,
-        };
+        const conflicts = claims
+            .filter((c) => c.sptVersion === stored.sptVersion && c.mod.id !== stored.mod.id)
+            .map((c) => modRef(c.mod, c.version, c.sptVersion, c.approximateRef));
         const vanilla = this.data(sptVersion).items;
-        const resolved = resolveItem(candidate, (target) => vanilla[target] ?? null);
+
+        const walked = new Set<string>([stored.itemId]);
+        const lookup = (target: string): Item | null => {
+            const base = vanilla[target];
+            if (base) return base;
+            if (walked.has(target)) return null;
+            walked.add(target);
+            const other = this.mods?.itemAnyLine(target, sptVersion);
+            return other ? resolveItem(toCandidate(other), lookup).item : null;
+        };
+        const resolved = resolveItem(toCandidate(stored), lookup);
         const entry = stored.locales[locale] ?? stored.locales.en ?? null;
         return {
             item: resolved.item ?? {
@@ -291,6 +311,7 @@ export class Catalog {
                 : null,
             mod: modRef(stored.mod, stored.version, stored.sptVersion, stored.approximateRef),
             cloneOf: resolved.cloneOf,
+            ...(conflicts.length > 0 ? { conflicts } : {}),
         };
     }
 

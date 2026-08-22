@@ -10,6 +10,7 @@
     --accent-soft: rgb(203 184 114 / 0.09);
     --accent-soft-hover: rgb(203 184 114 / 0.17);
     --hover: #232619;
+    --warn: #d99a5b;
     --j-key: #cbb872;
     --j-str: #9db36b;
     --j-num: #d99a5b;
@@ -627,6 +628,25 @@ main {
 /* No dropdown to offer, so drop the marker rather than leave a dead arrow. */
 .mods-expand:disabled::before {
     content: "";
+}
+
+.provenance-conflict {
+    margin: 0.45rem 0 0;
+    padding-left: 1.2rem;
+    position: relative;
+    color: var(--warn);
+    font-size: 0.8rem;
+}
+
+.provenance-conflict::before {
+    content: "!";
+    position: absolute;
+    left: 0.25rem;
+    font-weight: 700;
+}
+
+.provenance-conflict a {
+    color: inherit;
 }
 
 .mods-bulk {

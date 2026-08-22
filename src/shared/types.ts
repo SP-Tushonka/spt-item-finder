@@ -92,6 +92,8 @@ export interface ItemDetail {
     cloneOf?: string | null;
     /** Ids a mod added to this item's slot filters, mapped to the mod that added them. */
     moddedFilters?: Record<string, string>;
+    /** Other mods shipping this same id. */ 
+    conflicts?: ModRef[];
 }
 
 export interface HierarchyNode {

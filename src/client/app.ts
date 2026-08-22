@@ -45,9 +45,11 @@ function sptQuery(): string {
         : "";
 }
 
-function navigate(id: string): void {
-    history.pushState(null, "", `/item/${id}${sptQuery()}`);
-    loadItem(id);
+function navigate(id: string, modId?: number): void {
+    const spt = sptQuery();
+    const pick = modId === undefined ? "" : `${spt ? "&" : "?"}mod=${modId}`;
+    history.pushState(null, "", `/item/${id}${spt}${pick}`);
+    loadItem(id, modId);
 }
 
 function goHome(): void {
@@ -83,7 +85,8 @@ function route(): void {
 
     const match = location.pathname.match(/^\/item\/([^/]+)$/);
     if (match) {
-        loadItem(decodeURIComponent(match[1]!));
+        const picked = Number.parseInt(new URLSearchParams(location.search).get("mod") ?? "", 10);
+        loadItem(decodeURIComponent(match[1]!), Number.isFinite(picked) ? picked : undefined);
         return;
     }
     if (location.pathname === "/mods") {
@@ -99,7 +102,7 @@ function route(): void {
     }
 }
 
-async function loadItem(id: string): Promise<void> {
+async function loadItem(id: string, modId?: number): Promise<void> {
     currentId = id;
     showNotice("Loading…");
 
@@ -107,7 +110,7 @@ async function loadItem(id: string): Promise<void> {
     try {
         const sptVersion = sptSelect.value;
         const [detail, hierarchy] = await Promise.all([
-            getItem(id, locale, sptVersion, getDisabledMods()),
+            getItem(id, locale, sptVersion, getDisabledMods(), modId),
             getHierarchy(id, locale, sptVersion),
         ]);
         if (currentId !== id) return; // a newer navigation won
@@ -277,6 +280,26 @@ function renderProvenance(detail: ItemDetail): HTMLElement {
     link.textContent = mod.name;
     sptVersion.appendChild(link);
     box.appendChild(sptVersion);
+
+    if (detail.conflicts?.length) {
+        const warn = document.createElement("p");
+        warn.className = "provenance-conflict";
+        warn.append("Same item ID found in ");
+        detail.conflicts.forEach((other, index) => {
+            if (index > 0) warn.append(", ");
+            const otherLink = document.createElement("a");
+            otherLink.href = `/item/${detail.item._id}${sptQuery() ? `${sptQuery()}&` : "?"}mod=${other.id}`;
+            otherLink.textContent = other.name;
+            otherLink.title = `Show ${other.name}'s version of this item`;
+            otherLink.addEventListener("click", (event) => {
+                event.preventDefault();
+                navigate(detail.item._id, other.id);
+            });
+            warn.appendChild(otherLink);
+        });
+
+        box.appendChild(warn);
+    }
 
     return box;
 }
@@ -556,12 +579,12 @@ async function toggleItems(
         for (const item of items) {
             const link = document.createElement("a");
             link.className = "mod-item";
-            link.href = `/item/${item.id}${sptQuery()}`;
+            link.href = `/item/${item.id}${sptQuery() ? `${sptQuery()}&` : "?"}mod=${mod.id}`;
             link.textContent = item.name;
             link.title = item.shortName ? `${item.shortName} · ${item.id}` : item.id;
             link.addEventListener("click", (event) => {
                 event.preventDefault();
-                navigate(item.id);
+                navigate(item.id, mod.id);
             });
             list.appendChild(link);
         }

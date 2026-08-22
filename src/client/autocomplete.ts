@@ -10,7 +10,7 @@ interface AutocompleteOptions {
     getSptVersion: () => string;
     getMods: () => boolean;
     getDisabled: () => Set<number>;
-    onSelect: (id: string) => void;
+    onSelect: (id: string, modId?: number) => void;
 }
 
 export interface Autocomplete {
@@ -159,7 +159,8 @@ export function createAutocomplete(
         if (!result) return;
         input.value = result.name;
         close();
-        opts.onSelect(result.id);
+        // Two mods can ship one id: open the row's own mod, not whichever ranks first.
+        opts.onSelect(result.id, result.mod?.id);
     }
 
     function open(): void {
