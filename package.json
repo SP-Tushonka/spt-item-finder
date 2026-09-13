@@ -15,7 +15,7 @@
         "sync": "bun src/sync.ts"
     },
     "devDependencies": {
-        "@types/bun": "^1.4.0",
+        "@types/bun": "^1.4.2",
         "prettier": "^3.9.6"
     }
 }
