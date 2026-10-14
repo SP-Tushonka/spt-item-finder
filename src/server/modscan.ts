@@ -44,6 +44,8 @@ export async function scan(files: ModFile[], enums?: Map<string, string>): Promi
     const candidates: ItemCandidate[] = [];
     const skipped: SkippedFile[] = [];
     const localeTables: LocaleTable[] = [];
+    const deferred: DeferredClone[] = [];
+    const idTables: IdTable[] = [];
 
     for (const file of files) {
         const lower = file.path.toLowerCase();
@@ -65,11 +67,13 @@ export async function scan(files: ModFile[], enums?: Map<string, string>): Promi
                 localeTables.push(table);
                 continue;
             }
+            const ids = readIdTable(text, file.path);
+            if (ids) idTables.push(ids);
         }
 
         const found = isJson
             ? scanJson(text, file.path, skipped)
-            : scanCsharp(text, file.path, enums, skipped);
+            : scanCsharp(text, file.path, enums, skipped, deferred);
 
         if (found.length > BULK_OVERRIDE_LIMIT) {
             skipped.push({ path: file.path, reason: "bulk-override", count: found.length });
@@ -78,6 +82,7 @@ export async function scan(files: ModFile[], enums?: Map<string, string>): Promi
         candidates.push(...found);
     }
 
+    expandDeferred(candidates, deferred, idTables);
     applyLocaleTables(candidates, localeTables);
     return { candidates, verdict: verdictFor(candidates, skipped), skipped };
 }
@@ -127,6 +132,80 @@ function applyLocaleTables(candidates: ItemCandidate[], tables: LocaleTable[]): 
                 Description: entry.Description ?? "",
             };
         }
+    }
+}
+
+interface DeferredClone {
+    sourcePath: string;
+    cloneOf: string | undefined;
+    parentId: string | undefined;
+    handbookParentId: string | undefined;
+}
+
+interface IdTable {
+    path: string;
+    entries: { id: string; locale: LocaleEntry }[];
+}
+
+/** Entries need an id and a name. Quest, preset and assort files reference ids without naming them. */
+function readIdTable(text: string, path: string): IdTable | null {
+    let root: unknown;
+    try {
+        root = parseJsonc(text);
+    } catch {
+        return null;
+    }
+    if (!isRecord(root)) return null;
+
+    // The entries sit either at the top level or under a single wrapper key such as "Items".
+    const groups = [root, ...Object.values(root).filter(isRecord)];
+    for (const group of groups) {
+        const entries: IdTable["entries"] = [];
+        for (const value of Object.values(group)) {
+            if (!isRecord(value)) continue;
+            const id = pick(value, "_id") ?? pick(value, "id");
+            const name = pick(value, "name") ?? pick(value, "Name");
+            const short = pick(value, "shortName") ?? pick(value, "ShortName");
+            if (typeof id !== "string" || !MONGO_ID.test(id)) continue;
+            if (typeof name !== "string" || typeof short !== "string") continue;
+            const desc = pick(value, "desc") ?? pick(value, "description");
+            entries.push({
+                id,
+                locale: {
+                    Name: name,
+                    ShortName: short,
+                    Description: typeof desc === "string" ? desc : "",
+                },
+            });
+        }
+        if (entries.length > 0) return { path, entries };
+    }
+    return null;
+}
+
+/** Pairs only one template with one table. With more of either the match would be a guess. */
+function expandDeferred(
+    candidates: ItemCandidate[],
+    deferred: DeferredClone[],
+    idTables: IdTable[],
+): void {
+    const template = deferred[0];
+    const table = idTables[0];
+    if (deferred.length !== 1 || idTables.length !== 1 || !template || !table) return;
+    if (!template.cloneOf) return;
+
+    const claimed = new Set(candidates.map((c) => c.id));
+    for (const entry of table.entries) {
+        if (claimed.has(entry.id)) continue;
+        candidates.push({
+            id: entry.id,
+            kind: "clone-csharp",
+            sourcePath: template.sourcePath,
+            cloneOf: template.cloneOf,
+            parentId: template.parentId,
+            handbookParentId: template.handbookParentId,
+            locales: { en: entry.locale },
+        });
     }
 }
 
@@ -299,6 +378,7 @@ function scanCsharp(
     path: string,
     enums: Map<string, string> | undefined,
     skipped: SkippedFile[],
+    deferred?: DeferredClone[],
 ): ItemCandidate[] {
     const out: ItemCandidate[] = [];
     CLONE_DETAILS.lastIndex = 0;
@@ -313,6 +393,14 @@ function scanCsharp(
             // No NewId means a random one each launch; a non-literal one comes from config.
             const reason = fields.has("newid") ? "dynamic-id" : "no-stable-id";
             skipped.push({ path, reason });
+            if (reason === "dynamic-id") {
+                deferred?.push({
+                    sourcePath: path,
+                    cloneOf: csId(fields.get("itemtpltoclone"), enums),
+                    parentId: csId(fields.get("parentid"), enums),
+                    handbookParentId: csId(fields.get("handbookparentid"), enums),
+                });
+            }
             continue;
         }
         out.push({

@@ -565,3 +565,94 @@ describe("scan", () => {
         expect(byId(result.candidates, "677eed5f2e040616bc7246b6").sourcePath).toBe("src/Mod.cs");
     });
 });
+
+// Trimmed from Hood26/HoodsEnergyDrinks-CSharp ItemCreator.cs.
+const CONFIG_LOOP_CS = `
+public class ItemCreator {
+    public void Create(DatabaseService db) {
+        foreach (var (name, props) in info.Items) {
+            var newItem = new NewItemFromCloneDetails {
+                ItemTplToClone = "5d40407c86f774318526545a",
+                ParentId = "5448e8d64bdc2dce718b4568",
+                HandbookParentId = "5b47574386f77428ca22b33b",
+                NewId = props._id,
+                NewItemName = name,
+            };
+            customItem.CreateItemFromClone(newItem);
+        }
+    }
+}`;
+
+const DRINK_INFO_JSON = `{
+  "Items": {
+    "monster_blue": {
+      "_id": "694c6d5568b849f7bb05b7a9",
+      "name": "Monster Original Lo-Carb Energy Drink",
+      "shortName": "Monster",
+      "desc": "A lo-carb energy drink."
+    },
+    "red_bull": {
+      "_id": "694c6d5568b849f7bb05b7ab",
+      "name": "Red Bull Energy Drink",
+      "shortName": "Red Bull",
+      "desc": "Gives you wings."
+    }
+  }
+}`;
+
+describe("clone blocks whose id comes from config", () => {
+    test("pairs the block with the table holding the ids", async () => {
+        const { candidates, verdict } = await scan([
+            file("src/ItemCreator.cs", CONFIG_LOOP_CS),
+            file("src/EnergyDrinkInfo.json", DRINK_INFO_JSON),
+        ]);
+        expect(verdict).toBe("items");
+        expect(candidates.map((c) => c.id)).toEqual([
+            "694c6d5568b849f7bb05b7a9",
+            "694c6d5568b849f7bb05b7ab",
+        ]);
+        const drink = byId(candidates, "694c6d5568b849f7bb05b7a9");
+        expect(drink.cloneOf).toBe("5d40407c86f774318526545a");
+        expect(drink.parentId).toBe("5448e8d64bdc2dce718b4568");
+        expect(drink.locales?.en).toEqual({
+            Name: "Monster Original Lo-Carb Energy Drink",
+            ShortName: "Monster",
+            Description: "A lo-carb energy drink.",
+        });
+    });
+
+    // Quest, preset and assort files reference item ids without naming them.
+    test("ignores a table of ids that are not named items", async () => {
+        const assort = `{ "items": [
+            { "_id": "694c6d5568b849f7bb05b7a9", "_tpl": "5d40407c86f774318526545a", "upd": {} } ] }`;
+        const { candidates, verdict } = await scan([
+            file("src/ItemCreator.cs", CONFIG_LOOP_CS),
+            file("db/assort.json", assort),
+        ]);
+        expect(candidates).toHaveLength(0);
+        expect(verdict).toBe("items-unextractable");
+    });
+
+    test("refuses to guess when two tables could be the source", async () => {
+        const { candidates } = await scan([
+            file("src/ItemCreator.cs", CONFIG_LOOP_CS),
+            file("src/EnergyDrinkInfo.json", DRINK_INFO_JSON),
+            file(
+                "src/OtherInfo.json",
+                DRINK_INFO_JSON.replace(/694c6d5568b849f7bb05b7a9/, "694c6d5568b849f7bb05b7ac"),
+            ),
+        ]);
+        expect(candidates).toHaveLength(0);
+    });
+
+    test("leaves a block with no clone target alone", async () => {
+        const { candidates } = await scan([
+            file(
+                "src/ItemCreator.cs",
+                CONFIG_LOOP_CS.replace(/ItemTplToClone = "[0-9a-f]{24}",/, ""),
+            ),
+            file("src/EnergyDrinkInfo.json", DRINK_INFO_JSON),
+        ]);
+        expect(candidates).toHaveLength(0);
+    });
+});
