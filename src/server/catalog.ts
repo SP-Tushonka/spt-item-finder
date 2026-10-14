@@ -1,7 +1,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "../config";
-import { ModRegistry, type SlotAddition, type StoredItem } from "./modregistry";
+import {
+    ModRegistry,
+    type SearchRow as ModSearchRow,
+    type SlotAddition,
+    type StoredItem,
+} from "./modregistry";
 import { applySlotAdditions, resolveItem } from "./modresolve";
 import { Forge } from "./forge";
 import { parseItemTplEnum, type ItemCandidate } from "./modscan";
@@ -26,6 +31,15 @@ import {
     type SnapshotMeta,
     type UpstreamSource,
 } from "./upstream";
+
+interface ModSearchIndex {
+    entries: { row: ModSearchRow; nameLower: string; shortLower: string }[];
+    claimants: Map<string, number[]>;
+}
+
+function sharesId(index: ModSearchIndex, itemId: string, without: ReadonlySet<number>): boolean {
+    return (index.claimants.get(itemId) ?? []).filter((id) => !without.has(id)).length > 1;
+}
 
 function toCandidate(stored: StoredItem): ItemCandidate {
     return {
@@ -65,6 +79,8 @@ export class Catalog {
     private mods: ModRegistry | null = null;
     private slotCache = new Map<string, Map<string, SlotAddition[]>>();
     private slotCacheAt: string | null = null;
+    private modSearchCache = new Map<string, ModSearchIndex>();
+    private modSearchAt: { registry: ModRegistry; revision: string } | null = null;
     private refreshing: Promise<RefreshResponse> | null = null;
     private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
     private modSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -184,10 +200,9 @@ export class Catalog {
             });
         }
 
-        for (const row of (mods ? this.mods?.searchRows(sptVersion, locale) : null) ?? []) {
+        const modIndex = mods ? this.modSearchIndex(sptVersion, locale) : null;
+        for (const { row, nameLower, shortLower } of modIndex?.entries ?? []) {
             if (without.has(row.mod.id)) continue;
-            const nameLower = row.name.toLowerCase();
-            const shortLower = row.shortName.toLowerCase();
             const score =
                 nameLower === q || shortLower === q
                     ? 0
@@ -206,6 +221,7 @@ export class Catalog {
                     shortName: row.shortName || null,
                     description: null,
                     mod: modRef(row.mod, row.version, row.sptVersion, row.approximateRef),
+                    ...(sharesId(modIndex!, row.itemId, without) ? { sharedId: true } : {}),
                 },
             });
         }
@@ -237,6 +253,33 @@ export class Catalog {
             handbook: data.handbook[id] ?? null,
             moddedFilters: Object.keys(patched.added).length > 0 ? patched.added : undefined,
         };
+    }
+
+    private modSearchIndex(sptVersion: string, locale: string): ModSearchIndex | null {
+        if (!this.mods) return null;
+        const revision = this.mods.revision();
+        // A reopened connection restarts its counters, so the registry itself is part of the key.
+        if (this.modSearchAt?.registry !== this.mods || this.modSearchAt.revision !== revision) {
+            this.modSearchCache.clear();
+            this.modSearchAt = { registry: this.mods, revision };
+        }
+
+        const key = `${sptVersion}|${locale}`;
+        let index = this.modSearchCache.get(key);
+        if (!index) {
+            const entries = this.mods.searchRows(sptVersion, locale).map((row) => ({
+                row,
+                nameLower: row.name.toLowerCase(),
+                shortLower: row.shortName.toLowerCase(),
+            }));
+            const claimants = new Map<string, number[]>();
+            for (const { row } of entries) {
+                claimants.set(row.itemId, [...(claimants.get(row.itemId) ?? []), row.mod.id]);
+            }
+            index = { entries, claimants };
+            this.modSearchCache.set(key, index);
+        }
+        return index;
     }
 
     /** Built once per sptVersion and reused; rebuilt when the mod database is reopened. */

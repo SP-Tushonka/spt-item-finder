@@ -454,6 +454,16 @@ main {
     white-space: nowrap;
 }
 
+.opt-shared {
+    border-color: var(--warn);
+    color: var(--warn);
+}
+
+.opt-shared::before {
+    content: "! ";
+    font-weight: 700;
+}
+
 .provenance {
     margin: 0 0 1rem;
     padding: 0.7rem 0.9rem;

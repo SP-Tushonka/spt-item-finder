@@ -133,6 +133,10 @@ export function createAutocomplete(
                 badge.className = "opt-mod";
                 badge.textContent = result.mod.name;
                 badge.title = `Added by ${result.mod.name} ${result.mod.version} (SPT ${result.mod.sptVersion})`;
+                if (result.sharedId) {
+                    badge.classList.add("opt-shared");
+                    badge.title += ". Same item ID found in another mod.";
+                }
                 li.appendChild(badge);
             }
 

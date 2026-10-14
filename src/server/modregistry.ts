@@ -493,6 +493,14 @@ export class ModRegistry {
             .all();
     }
 
+    /** Moves on any write by any connection, so reads can be cached until it changes. */
+    revision(): string {
+        const theirs = this.db.query<{ data_version: number }, []>("PRAGMA data_version").get()!
+            .data_version;
+        const ours = this.db.query<{ n: number }, []>("SELECT total_changes() AS n").get()!.n;
+        return `${theirs}.${ours}`;
+    }
+
     state(key: string): string | null {
         return (
             this.db

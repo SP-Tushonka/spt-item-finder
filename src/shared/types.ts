@@ -74,6 +74,8 @@ export interface SearchResult {
     shortName: string | null;
     description: string | null;
     mod?: ModRef;
+    /** Another enabled mod ships the same id. */
+    sharedId?: boolean;
 }
 
 export interface SearchResponse {
