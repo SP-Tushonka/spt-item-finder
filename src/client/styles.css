@@ -132,6 +132,24 @@ main {
     color: var(--muted);
 }
 
+.search-key {
+    position: absolute;
+    top: 50%;
+    right: 0.9rem;
+    transform: translateY(-50%);
+    padding: 0 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    pointer-events: none;
+}
+
+.combobox:focus-within .search-key {
+    display: none;
+}
+
 #q:focus {
     border-color: var(--accent);
 }

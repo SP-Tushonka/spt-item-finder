@@ -212,6 +212,18 @@ async function populateLocales(): Promise<void> {
 }
 
 function boot(): void {
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (
+            (event.target as Element | null)?.closest("input, textarea, select, [contenteditable]")
+        ) {
+            return;
+        }
+        event.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+    });
+
     localeSelect.addEventListener("change", () => {
         setLocale(localeSelect.value);
         if (currentId) loadItem(currentId, currentModId);

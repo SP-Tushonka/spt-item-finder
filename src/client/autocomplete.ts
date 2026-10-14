@@ -93,7 +93,12 @@ export function createAutocomplete(
                 controller.signal,
             );
             results = response.results;
-            render(results.length === 0 ? "No items match." : null);
+            render(
+                results.length === 0 ? "No items match." : null,
+                response.truncated
+                    ? `Showing the first ${results.length}. Keep typing to narrow it down.`
+                    : null,
+            );
         } catch (err) {
             if (err instanceof DOMException && err.name === "AbortError") return;
             results = [];
@@ -101,7 +106,7 @@ export function createAutocomplete(
         }
     }
 
-    function render(status: string | null): void {
+    function render(status: string | null, footer: string | null = null): void {
         listbox.textContent = "";
         active = -1;
 
@@ -144,6 +149,13 @@ export function createAutocomplete(
             li.addEventListener("click", () => select(i));
             listbox.appendChild(li);
         });
+
+        if (footer) {
+            const li = document.createElement("li");
+            li.className = "status";
+            li.textContent = footer;
+            listbox.appendChild(li);
+        }
 
         open();
     }
