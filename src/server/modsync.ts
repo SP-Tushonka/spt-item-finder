@@ -75,6 +75,7 @@ export async function syncMods(deps: SyncDeps, options: SyncOptions = {}): Promi
                 drifted,
                 report,
                 log,
+                now,
             });
         }),
     );
@@ -93,6 +94,7 @@ interface RunContext {
     drifted: Set<string>;
     report: SyncReport;
     log: (message: string) => void;
+    now: string;
 }
 
 async function syncOne(
@@ -117,13 +119,23 @@ async function syncOne(
     try {
         const found = discoverRepo(sourceLinks, sptVersion);
         if (!found) {
-            deps.registry.recordScan({ versionId: version.id, sptVersion, outcome: "no-repo" });
+            deps.registry.recordScan({
+                versionId: version.id,
+                sptVersion,
+                outcome: "no-repo",
+                scannedAt: ctx.now,
+            });
             return count("no-repo");
         }
 
         const ref = await resolveRef(deps.repos, found, version.version);
         if (!ref) {
-            deps.registry.recordScan({ versionId: version.id, sptVersion, outcome: "error" });
+            deps.registry.recordScan({
+                versionId: version.id,
+                sptVersion,
+                outcome: "error",
+                scannedAt: ctx.now,
+            });
             return count("error");
         }
 
@@ -143,6 +155,7 @@ async function syncOne(
                 },
                 truncated: tree.truncated,
                 skipped: result.skipped,
+                scannedAt: ctx.now,
             },
             result.candidates,
         );
@@ -155,7 +168,12 @@ async function syncOne(
         }
     } catch (err) {
         ctx.log(`sync: ${modName} ${version.version} (${sptVersion}) failed: ${err}`);
-        deps.registry.recordScan({ versionId: version.id, sptVersion, outcome: "error" });
+        deps.registry.recordScan({
+            versionId: version.id,
+            sptVersion,
+            outcome: "error",
+            scannedAt: ctx.now,
+        });
         count("error");
     }
 }
