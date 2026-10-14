@@ -1,7 +1,7 @@
 import { searchItems } from "./api";
 import type { SearchResult } from "../shared/types";
 
-const ID_PATTERN = /^[a-z0-9]{24}$/;
+const ID_PATTERN = /^[0-9a-f]{24}$/;
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 250;
 

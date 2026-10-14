@@ -66,7 +66,7 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
                 const mods = url.searchParams.get("mods") !== "0";
                 const modId = Number.parseInt(url.searchParams.get("mod") ?? "", 10);
                 const detail = catalog.getItem(
-                    req.params.id,
+                    req.params.id.toLowerCase(),
                     locale,
                     sptVersionOf(url),
                     mods,
@@ -82,7 +82,11 @@ export function apiRoutes(catalog: Catalog, cfg: Config) {
                 const url = new URL(req.url);
                 const locale = requireLocale(url);
                 if (locale instanceof Response) return locale;
-                const chain = catalog.hierarchy(req.params.id, locale, sptVersionOf(url));
+                const chain = catalog.hierarchy(
+                    req.params.id.toLowerCase(),
+                    locale,
+                    sptVersionOf(url),
+                );
                 return chain ? Response.json({ chain }) : jsonError(404, "item not found");
             },
         },

@@ -26,6 +26,10 @@ export function createServer(catalog: Catalog, cfg: Config) {
             "/": index,
             "/item/:id": async (req: BunRequest<"/item/:id">, server) => {
                 const id = req.params.id;
+                if (id !== id.toLowerCase()) {
+                    const location = `/item/${id.toLowerCase()}${new URL(req.url).search}`;
+                    return new Response(null, { status: 301, headers: { location } });
+                }
                 const shell = await getShell(server.url);
                 const params = new URL(req.url).searchParams;
                 const sptVersion = params.get("spt") || catalog.defaultSptVersion();
