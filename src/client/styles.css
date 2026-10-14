@@ -432,6 +432,19 @@ main {
     opacity: 1;
 }
 
+.j-link {
+    text-decoration: none;
+}
+
+.j-link:hover {
+    text-decoration: underline;
+}
+
+.j-name {
+    margin-left: 0.6rem;
+    color: var(--text);
+}
+
 .j-copy:hover {
     color: var(--accent);
     border-color: var(--border);

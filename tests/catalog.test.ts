@@ -43,6 +43,24 @@ describe("ingestion", () => {
         });
     });
 
+    test("names the items an item refers to", () => {
+        const names = catalog.getItem(IDS.orphan, "en")!.names!;
+        expect(names[IDS.bottle]).toBe(catalog.getItem(IDS.bottle, "en")!.locale!.Name);
+    });
+
+    test("leaves out its own id and ids that are not items", () => {
+        const names = catalog.getItem(IDS.orphan, "en")!.names ?? {};
+        expect(names[IDS.orphan]).toBeUndefined();
+        expect(names["ffffffffffffffffffffffff"]).toBeUndefined();
+    });
+
+    test("a category has no locale entry, so it is named by its template name", () => {
+        const parent = catalog.getItem(IDS.waterRation, "en")!;
+        expect(parent.names![parent.item._parent]).toBe(
+            catalog.getItem(IDS.foodNode, "en")!.item._name,
+        );
+    });
+
     test("maps handbook entries and leaves null for uncovered items", () => {
         expect(catalog.getItem(IDS.waterRation, "en")!.handbook).toEqual({
             ParentId: "5b47574386f77428ca22b33e",

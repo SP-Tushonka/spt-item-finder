@@ -174,8 +174,10 @@ function renderDetail(detail: ItemDetail): void {
     copyJson.className = "chip";
     copyJson.textContent = "Copy JSON";
     copyJson.title = "Copy the full item JSON";
+    // Lookup aids for the page, not part of the item.
+    const { moddedFilters, names, ...shown } = detail;
     copyJson.addEventListener("click", () =>
-        copyToClipboard(copyJson, JSON.stringify(detail, null, 2)),
+        copyToClipboard(copyJson, JSON.stringify(shown, null, 2)),
     );
     actions.appendChild(copyJson);
 
@@ -186,9 +188,13 @@ function renderDetail(detail: ItemDetail): void {
 
     const tree = document.createElement("div");
     tree.className = "tree";
-    // The mod attribution drives the highlighting; it is not part of the item's data.
-    const { moddedFilters, ...shown } = detail;
-    renderJsonTree(tree, shown, moddedFilters, expandToggle.checked);
+    renderJsonTree(tree, shown, {
+        modded: moddedFilters,
+        names,
+        expanded: expandToggle.checked,
+        linkFor: (id) => itemPath(id),
+        onNavigate: (id) => navigate(id),
+    });
     card.appendChild(tree);
 
     detailEl.appendChild(card);

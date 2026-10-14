@@ -96,6 +96,8 @@ export interface ItemDetail {
     moddedFilters?: Record<string, string>;
     /** Other mods shipping this same id. */
     conflicts?: ModRef[];
+    /** Display names for the item ids this detail mentions. */
+    names?: Record<string, string>;
 }
 
 export interface HierarchyNode {

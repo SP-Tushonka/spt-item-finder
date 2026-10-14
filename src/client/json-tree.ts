@@ -1,18 +1,19 @@
 // Collapsible JSON tree. Containers render only a summary row up front; child
 // DOM is built on first expand, which keeps huge item _props instant.
 
-/** Value to the mod that contributed it, so a filter entry can name its source. */
-let modded: Record<string, string> = {};
-let expandAll = false;
+export interface TreeOptions {
+    /** Value to the mod that contributed it, so a filter entry can name its source. */
+    modded?: Record<string, string>;
+    names?: Record<string, string>;
+    expanded?: boolean;
+    linkFor?: (id: string) => string;
+    onNavigate?: (id: string) => void;
+}
 
-export function renderJsonTree(
-    container: HTMLElement,
-    value: unknown,
-    moddedValues: Record<string, string> = {},
-    expanded = false,
-): void {
-    modded = moddedValues;
-    expandAll = expanded;
+let options: TreeOptions = {};
+
+export function renderJsonTree(container: HTMLElement, value: unknown, opts: TreeOptions): void {
+    options = opts;
     container.textContent = "";
     container.appendChild(renderNode(null, value, 0));
 }
@@ -52,7 +53,7 @@ function containerNode(
         : `{…} ${entries.length} ${entries.length === 1 ? "key" : "keys"}`;
     summary.appendChild(preview);
 
-    const fromMods = entries.filter(([, v]) => typeof v === "string" && modded[v]).length;
+    const fromMods = entries.filter(([, v]) => typeof v === "string" && options.modded?.[v]).length;
     if (fromMods > 0) {
         const tag = document.createElement("span");
         tag.className = "j-modded-count";
@@ -79,7 +80,9 @@ function containerNode(
     });
 
     // Shallow levels start expanded, except the huge _props bag.
-    if (expandAll ? entries.length > 0 : depth < 2 && key !== "_props" && entries.length > 0) {
+    if (
+        options.expanded ? entries.length > 0 : depth < 2 && key !== "_props" && entries.length > 0
+    ) {
         renderChildren();
         details.open = true;
     }
@@ -99,11 +102,13 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
         row.appendChild(document.createTextNode(": "));
     }
 
-    const source = typeof value === "string" ? modded[value] : undefined;
-    const valueSpan = document.createElement("span");
+    const source = typeof value === "string" ? options.modded?.[value] : undefined;
+    const name = typeof value === "string" ? options.names?.[value] : undefined;
+    const valueSpan = document.createElement(name ? "a" : "span");
     if (typeof value === "string") {
         valueSpan.className = "j-str";
         valueSpan.textContent = JSON.stringify(value);
+        if (name) linkTo(valueSpan as HTMLAnchorElement, value);
     } else if (typeof value === "number") {
         valueSpan.className = "j-num";
         valueSpan.textContent = String(value);
@@ -116,6 +121,13 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
     }
     row.appendChild(valueSpan);
 
+    if (name) {
+        const label = document.createElement("span");
+        label.className = "j-name";
+        label.textContent = name;
+        row.appendChild(label);
+    }
+
     if (source) {
         row.classList.add("j-modded");
         const by = document.createElement("span");
@@ -125,6 +137,17 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
     }
     row.appendChild(copyButton(value));
     return row;
+}
+
+function linkTo(link: HTMLAnchorElement, id: string): void {
+    link.href = options.linkFor?.(id) ?? `/item/${id}`;
+    link.classList.add("j-link");
+    link.addEventListener("click", (event) => {
+        // Modified clicks keep their browser meaning, such as opening a new tab.
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        event.preventDefault();
+        options.onNavigate?.(id);
+    });
 }
 
 function copyButton(value: unknown): HTMLButtonElement {

@@ -35,6 +35,7 @@ import {
 interface ModSearchIndex {
     entries: { row: ModSearchRow; nameLower: string; shortLower: string }[];
     claimants: Map<string, number[]>;
+    names: Map<string, string>;
 }
 
 function sharesId(index: ModSearchIndex, itemId: string, without: ReadonlySet<number>): boolean {
@@ -61,6 +62,7 @@ interface SearchRow {
 
 const MAX_HIERARCHY_DEPTH = 32;
 const EMPTY: ReadonlySet<number> = new Set();
+const ITEM_ID = /^[0-9a-f]{24}$/;
 
 interface SnapshotData {
     items: Record<string, Item>;
@@ -243,16 +245,46 @@ export class Catalog {
     ): ItemDetail | null {
         const data = this.data(sptVersion);
         const item = data.items[id];
-        if (!item) return mods ? this.getModItem(id, locale, sptVersion, without, modId) : null;
+        if (!item) {
+            const modded = mods ? this.getModItem(id, locale, sptVersion, without, modId) : null;
+            return modded && this.withNames(modded, locale, sptVersion);
+        }
         const patched = mods
             ? applySlotAdditions(item, this.slotAdditions(sptVersion, without))
             : { item, added: {} };
-        return {
-            item: patched.item,
-            locale: data.locales[locale]?.[id] ?? null,
-            handbook: data.handbook[id] ?? null,
-            moddedFilters: Object.keys(patched.added).length > 0 ? patched.added : undefined,
+        return this.withNames(
+            {
+                item: patched.item,
+                locale: data.locales[locale]?.[id] ?? null,
+                handbook: data.handbook[id] ?? null,
+                moddedFilters: Object.keys(patched.added).length > 0 ? patched.added : undefined,
+            },
+            locale,
+            sptVersion,
+        );
+    }
+
+    /** Names every item id the detail mentions. Slot and other non-item ids do not resolve. */
+    private withNames(detail: ItemDetail, locale: string, sptVersion: string): ItemDetail {
+        const data = this.data(sptVersion);
+        const modNames = this.modSearchIndex(sptVersion, locale)?.names;
+        const names: Record<string, string> = {};
+        const visit = (value: unknown): void => {
+            if (typeof value === "string") {
+                if (value === detail.item._id || value in names || !ITEM_ID.test(value)) return;
+                const name =
+                    data.locales[locale]?.[value]?.Name ??
+                    data.locales.en?.[value]?.Name ??
+                    data.items[value]?._name ??
+                    modNames?.get(value);
+                if (name) names[value] = name;
+            } else if (value && typeof value === "object") {
+                for (const child of Object.values(value)) visit(child);
+            }
         };
+        visit(detail.item);
+        visit(detail.cloneOf);
+        return Object.keys(names).length > 0 ? { ...detail, names } : detail;
     }
 
     private modSearchIndex(sptVersion: string, locale: string): ModSearchIndex | null {
@@ -273,10 +305,13 @@ export class Catalog {
                 shortLower: row.shortName.toLowerCase(),
             }));
             const claimants = new Map<string, number[]>();
+            const names = new Map<string, string>();
             for (const { row } of entries) {
                 claimants.set(row.itemId, [...(claimants.get(row.itemId) ?? []), row.mod.id]);
+                if (row.name !== row.itemId && !names.has(row.itemId))
+                    names.set(row.itemId, row.name);
             }
-            index = { entries, claimants };
+            index = { entries, claimants, names };
             this.modSearchCache.set(key, index);
         }
         return index;

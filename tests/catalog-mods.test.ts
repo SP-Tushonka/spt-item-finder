@@ -248,6 +248,10 @@ describe("modded item detail", () => {
         expect(detail?.item._props.Weight).toBe(0.65); // from vanilla, two hops up
     });
 
+    test("a mod item names the mod item it clones", () => {
+        expect(catalog.getItem(CHAINED_ITEM, "en")?.names?.[MOD_ITEM]).toBe("Tac-Kek SAPI plate");
+    });
+
     test("clone chains resolve to any depth", () => {
         const detail = catalog.getItem(DEEP_ITEM, "en");
         expect(detail?.item._props.StackMaxSize).toBe(4);
