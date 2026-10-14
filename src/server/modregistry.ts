@@ -7,6 +7,10 @@ import { versionSortKey } from "./semver";
 
 export type ScanOutcome = Verdict | "no-repo" | "error";
 
+/** Outcomes that actually read the repo. Only these may replace items or become current. */
+const READ: ScanOutcome[] = ["items", "items-unextractable", "no-items"];
+const READ_SQL = READ.map((outcome) => `'${outcome}'`).join(", ");
+
 export interface SlotAddition {
     id: string;
     modId: number;
@@ -68,7 +72,7 @@ export interface StoredItem {
     approximateRef: boolean;
 }
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const LISTING_KEY = "lastListing";
 
@@ -114,9 +118,10 @@ CREATE TABLE sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 const CURRENT_SCAN_VIEW = `CREATE VIEW current_scan AS
 SELECT s.*, v.mod_id, v.version, v.sort_key
 FROM scan s JOIN mod_version v ON v.id = s.version_id
-WHERE v.sort_key = (
+WHERE s.outcome IN (${READ_SQL}) AND v.sort_key = (
     SELECT MAX(v2.sort_key) FROM scan s2 JOIN mod_version v2 ON v2.id = s2.version_id
-    WHERE v2.mod_id = v.mod_id AND s2.spt_version = s.spt_version);`;
+    WHERE v2.mod_id = v.mod_id AND s2.spt_version = s.spt_version
+        AND s2.outcome IN (${READ_SQL}));`;
 
 export class ModRegistry {
     private constructor(private db: Database) {}
@@ -142,6 +147,10 @@ export class ModRegistry {
             if (version < 3) db.run("ALTER TABLE scan ADD COLUMN repo_sha TEXT");
             if (version < 4) db.run("ALTER TABLE mod_item ADD COLUMN mod_slots TEXT");
             if (version < 5) renameLineColumn(db);
+            if (version < 6) {
+                db.run("DROP VIEW IF EXISTS current_scan");
+                db.run(CURRENT_SCAN_VIEW);
+            }
         }
         if (version !== SCHEMA_VERSION) db.run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
         return new ModRegistry(db);
@@ -221,11 +230,11 @@ export class ModRegistry {
 
     needsScan(versionId: number, sptVersion: string, changedAt?: string): boolean {
         const row = this.db
-            .query<{ scanned_at: string }, [number, string]>(
-                "SELECT scanned_at FROM scan WHERE version_id = ? AND spt_version = ?",
+            .query<{ scanned_at: string; outcome: ScanOutcome }, [number, string]>(
+                "SELECT scanned_at, outcome FROM scan WHERE version_id = ? AND spt_version = ?",
             )
             .get(versionId, sptVersion);
-        if (!row) return true;
+        if (!row || row.outcome === "error") return true;
         return changedAt !== undefined && row.scanned_at < changedAt;
     }
 
@@ -239,7 +248,8 @@ export class ModRegistry {
                  repo_ref = excluded.repo_ref, ref_kind = excluded.ref_kind,
                  repo_sha = excluded.repo_sha,
                  truncated = excluded.truncated, item_count = excluded.item_count,
-                 skipped = excluded.skipped, scanned_at = excluded.scanned_at`,
+                 skipped = excluded.skipped, scanned_at = excluded.scanned_at
+             WHERE excluded.outcome IN (${READ_SQL}) OR scan.outcome NOT IN (${READ_SQL})`,
         );
         const item = this.db.prepare(
             `INSERT OR REPLACE INTO mod_item (version_id, spt_version, item_id, kind, clone_of, parent_id,
@@ -263,6 +273,7 @@ export class ModRegistry {
                 record.skipped ? JSON.stringify(record.skipped) : null,
                 record.scannedAt ?? new Date().toISOString(),
             );
+            if (!READ.includes(record.outcome)) return;
             this.db.run(
                 `DELETE FROM mod_item WHERE spt_version = ? AND version_id IN
                  (SELECT id FROM mod_version WHERE mod_id =

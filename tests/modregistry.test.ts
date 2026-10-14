@@ -226,6 +226,54 @@ describe("profile binding notice", () => {
     });
 });
 
+describe("a scan that could not read the repo", () => {
+    test("an error leaves the last known items alone", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "error" });
+        expect(registry.searchRows("4.1").map((r) => r.itemId)).toEqual([A]);
+    });
+
+    test("a missing repo leaves them alone too", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "no-repo" });
+        expect(registry.searchRows("4.1")).toHaveLength(1);
+    });
+
+    test("a failed rescan of the same version keeps the mod listed", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "error" });
+        expect(registry.importedMods("4.1")[0]?.sptVersions[0]?.items).toBe(1);
+    });
+
+    test("a newer version that fails to read keeps serving the older one", () => {
+        registry.upsertMods([mod({ versions: [version(1, "1.0.0"), version(2, "2.0.0")] })]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        registry.recordScan({ versionId: 2, sptVersion: "4.1", outcome: "error" });
+        const rows = registry.searchRows("4.1");
+        expect(rows.map((r) => r.itemId)).toEqual([A]);
+        expect(rows[0]?.version).toBe("1.0.0");
+    });
+
+    test("an errored scan is retried, a good one is not", () => {
+        registry.upsertMods([mod({ versions: [version(1, "1.0.0"), version(2, "2.0.0")] })]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "error" });
+        registry.recordScan({ versionId: 2, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        expect(registry.needsScan(1, "4.1")).toBe(true);
+        expect(registry.needsScan(2, "4.1")).toBe(false);
+    });
+
+    // An empty read means the mod dropped its items.
+    test("a read that finds nothing does clear them", () => {
+        registry.upsertMods([mod()]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "items" }, [candidate(A)]);
+        registry.recordScan({ versionId: 1, sptVersion: "4.1", outcome: "no-items" });
+        expect(registry.searchRows("4.1")).toHaveLength(0);
+    });
+});
+
 describe("searchRows", () => {
     test("returns only the newest scanned version per mod and sptVersion", () => {
         registry.upsertMods([mod({ versions: [version(1, "1.1.5"), version(2, "2.0.1")] })]);

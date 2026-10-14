@@ -252,7 +252,9 @@ export class GitHubRepoSource implements RepoSource {
         const at = encodeURIComponent(ref.sha ?? ref.ref);
         const path = `/repos/${ref.owner}/${ref.repo}/git/trees/${at}?recursive=1`;
         const body = await this.api<{ tree?: TreeEntry[]; truncated?: boolean }>(path);
-        return { entries: body?.tree ?? [], truncated: body?.truncated === true };
+        // Returning an empty list here would record the mod as having no items.
+        if (!body?.tree) throw new Error(`GET ${path} failed`);
+        return { entries: body.tree, truncated: body.truncated === true };
     }
 
     async read(ref: RepoRef, path: string): Promise<string> {
