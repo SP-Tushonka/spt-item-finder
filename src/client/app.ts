@@ -49,6 +49,19 @@ function itemPath(id: string, modId?: number): string {
     return `/item/${id}${query ? `?${query}` : ""}`;
 }
 
+/** An in-app link that still lets a modified click open a new tab. */
+function itemLink(id: string, text: string, modId?: number): HTMLAnchorElement {
+    const link = document.createElement("a");
+    link.href = itemPath(id, modId);
+    link.textContent = text;
+    link.addEventListener("click", (event) => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        event.preventDefault();
+        navigate(id, modId);
+    });
+    return link;
+}
+
 function navigate(id: string, modId?: number): void {
     history.pushState(null, "", itemPath(id, modId));
     loadItem(id, modId);
@@ -308,14 +321,8 @@ function renderProvenance(detail: ItemDetail): HTMLElement {
         warn.append("Same item ID found in ");
         detail.conflicts.forEach((other, index) => {
             if (index > 0) warn.append(", ");
-            const otherLink = document.createElement("a");
-            otherLink.href = itemPath(detail.item._id, other.id);
-            otherLink.textContent = other.name;
+            const otherLink = itemLink(detail.item._id, other.name, other.id);
             otherLink.title = `Show ${other.name}'s version of this item`;
-            otherLink.addEventListener("click", (event) => {
-                event.preventDefault();
-                navigate(detail.item._id, other.id);
-            });
             warn.appendChild(otherLink);
         });
 
@@ -598,15 +605,9 @@ async function toggleItems(
             return;
         }
         for (const item of items) {
-            const link = document.createElement("a");
+            const link = itemLink(item.id, item.name, mod.id);
             link.className = "mod-item";
-            link.href = itemPath(item.id, mod.id);
-            link.textContent = item.name;
             link.title = item.shortName ? `${item.shortName} · ${item.id}` : item.id;
-            link.addEventListener("click", (event) => {
-                event.preventDefault();
-                navigate(item.id, mod.id);
-            });
             list.appendChild(link);
         }
     } catch (err) {
