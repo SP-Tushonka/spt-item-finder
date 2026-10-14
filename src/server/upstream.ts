@@ -98,22 +98,26 @@ export class Upstream implements UpstreamSource {
     }
 
     async listTags(): Promise<string[]> {
+        // Build tags pile up daily, so an older line's releases soon fall off the first page.
+        const names: string[] = [];
         try {
-            const res = await fetch(
-                `https://api.github.com/repos/${this.cfg.repo}/tags?per_page=100`,
-                {
-                    headers: {
-                        Accept: "application/vnd.github+json",
-                        "User-Agent": USER_AGENT,
+            for (let page = 1; page <= 10; page++) {
+                const res = await fetch(
+                    `https://api.github.com/repos/${this.cfg.repo}/tags?per_page=100&page=${page}`,
+                    {
+                        headers: {
+                            Accept: "application/vnd.github+json",
+                            "User-Agent": USER_AGENT,
+                        },
                     },
-                },
-            );
-            if (!res.ok) return [];
-            const tags = (await res.json()) as { name?: string }[];
-            return tags.map((tag) => tag.name).filter((name): name is string => !!name);
-        } catch {
-            return [];
-        }
+                );
+                if (!res.ok) break;
+                const tags = (await res.json()) as { name?: string }[];
+                for (const tag of tags) if (tag.name) names.push(tag.name);
+                if (tags.length < 100) break;
+            }
+        } catch {}
+        return names;
     }
 
     async latestSha(ref = this.cfg.branch): Promise<string | null> {
