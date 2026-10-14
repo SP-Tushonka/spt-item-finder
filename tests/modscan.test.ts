@@ -656,3 +656,30 @@ describe("clone blocks whose id comes from config", () => {
         expect(candidates).toHaveLength(0);
     });
 });
+
+describe("a file that is one item template", () => {
+    // Trimmed from bluehead24/AIOTrader-For-SPT data/item_aio_case.json.
+    const CASE = `{
+        "_id": "6749a2f3b956b4a7b3b7a29a",
+        "_name": "bluehead's All In One Case",
+        "_parent": "5795f317245977243854e041",
+        "_type": "Item",
+        "_props": { "Name": "bluehead's All In One Case", "Width": 1, "Height": 1 }
+    }`;
+
+    test("is read as a database item", async () => {
+        const { candidates, verdict } = await scan([file("data/item_aio_case.json", CASE)]);
+        expect(verdict).toBe("items");
+        expect(candidates).toHaveLength(1);
+        expect(candidates[0]).toMatchObject({
+            id: "6749a2f3b956b4a7b3b7a29a",
+            kind: "database",
+            parentId: "5795f317245977243854e041",
+        });
+    });
+
+    test("needs a parent and props, not just an id", async () => {
+        const bare = `{ "_id": "6749a2f3b956b4a7b3b7a29a", "name": "x" }`;
+        expect((await scan([file("data/x.json", bare)])).candidates).toHaveLength(0);
+    });
+});

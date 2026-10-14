@@ -235,6 +235,8 @@ function scanJson(text: string, path: string, skipped: SkippedFile[]): ItemCandi
 
     const wrapped = readNewItemFile(root, path);
     if (wrapped !== undefined) return wrapped ? [wrapped] : [];
+    const single = readDatabaseEntry("", root, path);
+    if (single) return [single];
 
     for (const [key, value] of Object.entries(root)) {
         if (!isRecord(value)) continue;
