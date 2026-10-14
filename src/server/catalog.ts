@@ -25,6 +25,7 @@ import type {
 } from "../shared/types";
 import {
     downloadSnapshot,
+    resolveRef,
     loadSnapshot,
     saveSnapshot,
     type Snapshot,
@@ -106,7 +107,13 @@ export class Catalog {
             );
         }
         for (const sptVersion of cfg.sptVersions) {
-            await catalog.loadSptVersion(sptVersion);
+            try {
+                await catalog.loadSptVersion(sptVersion);
+            } catch (err) {
+                // Only the default is required to serve. The refresh retries the others.
+                if (sptVersion === cfg.defaultSptVersion) throw err;
+                log(`catalog: SPT ${sptVersion} unavailable, skipping for now: ${err}`);
+            }
         }
         catalog.mods =
             cfg.modSyncIntervalHours > 0
@@ -148,7 +155,7 @@ export class Catalog {
     }
 
     sptVersions(): string[] {
-        return [...this.bySptVersion.keys()];
+        return this.cfg.sptVersions.filter((sptVersion) => this.bySptVersion.has(sptVersion));
     }
 
     /**
@@ -545,6 +552,8 @@ export class Catalog {
 
     startAutoRefresh(): void {
         if (this.autoRefreshTimer || this.cfg.refreshIntervalHours <= 0) return;
+        // Once at boot, so a changed ref or a moved branch does not wait a whole interval.
+        this.refresh().catch((err) => this.log(`catalog: boot refresh failed: ${err}`));
         this.autoRefreshTimer = setInterval(
             () => {
                 this.refresh().catch((err) => this.log(`catalog: auto-refresh failed: ${err}`));
@@ -555,12 +564,27 @@ export class Catalog {
 
     private async doRefresh(force: boolean): Promise<RefreshResponse> {
         let refreshed = false;
+        let tags: string[] | null = null;
         for (const sptVersion of this.cfg.sptVersions) {
-            const current = this.bySptVersion.get(sptVersion);
-            const latest = await this.source.latestSha(current?.meta.ref ?? this.cfg.branch);
-            if (!force && latest !== null && latest === current?.meta.sha) continue;
-            await this.loadSptVersion(sptVersion, true);
-            refreshed = true;
+            try {
+                // Resolved fresh each time, since a newer release tag never moves the old one.
+                const needsTags = !this.cfg.refs[sptVersion];
+                const ref = resolveRef(
+                    this.cfg,
+                    needsTags ? (tags ??= await this.source.listTags()) : [],
+                    sptVersion,
+                );
+                const current = this.bySptVersion.get(sptVersion);
+                const latest = await this.source.latestSha(ref);
+                const unchanged =
+                    latest !== null && latest === current?.meta.sha && ref === current.meta.ref;
+                if (!force && unchanged) continue;
+                await this.loadSptVersion(sptVersion, true);
+                refreshed = true;
+            } catch (err) {
+                if (sptVersion === this.cfg.defaultSptVersion) throw err;
+                this.log(`catalog: refreshing SPT ${sptVersion} failed: ${err}`);
+            }
         }
 
         const data = this.data();

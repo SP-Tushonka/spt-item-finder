@@ -15,6 +15,8 @@ export interface Config {
     modSyncIntervalHours: number;
     modMinDownloads: number;
     sptVersions: string[];
+    /** Git ref each SPT version is read from. Versions not listed use their newest release tag. */
+    refs: Record<string, string>;
     production: boolean;
 }
 
@@ -52,12 +54,23 @@ export function loadConfig(env: Record<string, string | undefined> = Bun.env): C
         defaultSptVersion: env.DEFAULT_SPT_VERSION || "4.1",
         modSyncIntervalHours: intOr(env.MOD_SYNC_INTERVAL_HOURS, 0),
         modMinDownloads: intOr(env.MOD_MIN_DOWNLOADS, 2000),
-        sptVersions: (env.SPT_VERSIONS || "4.1,4.0")
+        sptVersions: (env.SPT_VERSIONS || "5.0,4.1,4.0")
             .split(",")
             .map((sptVersion) => sptVersion.trim())
             .filter(Boolean),
+        refs: parseRefs(env.SPT_REFS ?? "5.0=5.0x-dev,4.1=4.1x-dev,4.0=4.0.13"),
         production: env.NODE_ENV === "production",
     };
+}
+
+/** "5.0=5.0x-dev,4.0=4.0.13" to { "5.0": "5.0x-dev", "4.0": "4.0.13" }. */
+function parseRefs(value: string): Record<string, string> {
+    const refs: Record<string, string> = {};
+    for (const pair of value.split(",")) {
+        const [sptVersion, ref] = pair.split("=").map((part) => part.trim());
+        if (sptVersion && ref) refs[sptVersion] = ref;
+    }
+    return refs;
 }
 
 function intOr(value: string | undefined, fallback: number): number {

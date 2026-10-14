@@ -11,7 +11,9 @@ services:
             GITHUB_TOKEN: ${GITHUB_TOKEN:-}
             MOD_SYNC_INTERVAL_HOURS: ${MOD_SYNC_INTERVAL_HOURS:-24}
             MOD_MIN_DOWNLOADS: ${MOD_MIN_DOWNLOADS:-2000}
-            SPT_VERSIONS: ${SPT_VERSIONS:-4.1,4.0}
+            SPT_VERSIONS: ${SPT_VERSIONS:-5.0,4.1,4.0}
+            SPT_REFS: ${SPT_REFS:-5.0=5.0x-dev,4.1=4.1x-dev,4.0=4.0.13}
+            DEFAULT_SPT_VERSION: ${DEFAULT_SPT_VERSION:-4.1}
         volumes:
             # A vanilla snapshot per SPT version is ~70MB, plus the mod database.
             - data:/app/data

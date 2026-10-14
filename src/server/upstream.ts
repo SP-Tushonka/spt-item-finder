@@ -15,7 +15,7 @@ export interface SnapshotMeta {
     repo: string;
     fetchedAt: string;
     localeFiles: string[];
-    /** SPT release sptVersion this snapshot is for, and the tag it was pinned to. */
+    /** SPT version this snapshot is for, and the git ref it was read from. */
     sptVersion?: string;
     ref?: string;
 }
@@ -216,6 +216,11 @@ export class Upstream implements UpstreamSource {
 // have no database, and fork release tags (v4.2.0) that are not SPT versions at all.
 const RELEASE_TAG = /^\d+\.\d+(\.\d+)?$/;
 
+/** The configured ref for a sptVersion, else its newest release tag, else the default branch. */
+export function resolveRef(cfg: Config, tags: string[], sptVersion: string): string {
+    return cfg.refs[sptVersion] ?? refForSptVersion(tags, sptVersion, cfg.branch);
+}
+
 /** Newest tag on a release sptVersion, e.g. 4.0.13 for "4.0". Falls back to the configured branch. */
 export function refForSptVersion(tags: string[], sptVersion: string, fallback: string): string {
     const onLine = tags.filter(
@@ -231,9 +236,8 @@ export async function downloadSnapshot(
     sptVersion?: string,
     log: (message: string) => void = () => {},
 ): Promise<Snapshot> {
-    const ref = sptVersion
-        ? refForSptVersion(await source.listTags(), sptVersion, cfg.branch)
-        : cfg.branch;
+    const tags = sptVersion ? await source.listTags() : [];
+    const ref = sptVersion ? resolveRef(cfg, tags, sptVersion) : cfg.branch;
     const sha = (await source.latestSha(ref)) ?? ref;
     const localeFiles = await source.listLocaleFiles(sha);
     log(`fetching upstream snapshot of ${cfg.repo} at ${ref} (${sha.slice(0, 8)})`);

@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { loadConfig } from "../src/config";
 import {
     FALLBACK_LOCALE_FILES,
     lfsBatchBody,
     parseLfsPointer,
     refForSptVersion,
+    resolveRef,
 } from "../src/server/upstream";
 
 const OID = "3f35bd85bc19c6c224e0dcc0a05120b7cba412ec885c4f73613c615092a2fe96";
@@ -81,5 +83,24 @@ describe("refForSptVersion", () => {
     test("falls back when the sptVersion has no tag", () => {
         expect(refForSptVersion(tags, "5.0", "main")).toBe("main");
         expect(refForSptVersion([], "4.0", "develop")).toBe("develop");
+    });
+});
+
+describe("per-version refs", () => {
+    test("a configured ref wins over the newest release tag", () => {
+        const cfg = loadConfig({ SPT_REFS: "4.1=4.1x-dev" });
+        expect(resolveRef(cfg, ["4.1.6"], "4.1")).toBe("4.1x-dev");
+    });
+
+    test("a version without a configured ref uses its newest release tag", () => {
+        const cfg = loadConfig({ SPT_REFS: "" });
+        expect(resolveRef(cfg, ["4.1.5", "4.1.6"], "4.1")).toBe("4.1.6");
+    });
+
+    test("refs are parsed from a comma separated list", () => {
+        expect(loadConfig({ SPT_REFS: "5.0=5.0x-dev, 4.0 = 4.0.13" }).refs).toEqual({
+            "5.0": "5.0x-dev",
+            "4.0": "4.0.13",
+        });
     });
 });

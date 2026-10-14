@@ -191,3 +191,42 @@ describe("ItemTpl table", () => {
         expect(catalog.itemTplEnum().size).toBe(0);
     });
 });
+
+class FailingSource extends FixtureSource {
+    override async latestSha(ref?: string): Promise<string | null> {
+        if (ref === "broken") throw new Error("upstream unavailable");
+        return this.sha;
+    }
+}
+
+describe("SPT versions", () => {
+    const fresh = () => mkdtempSync(join(tmpdir(), "sptdb-versions-"));
+
+    test("a version that fails to download is skipped rather than stopping the server", async () => {
+        const cfg = testConfig(fresh(), { SPT_VERSIONS: "9.9,4.1", SPT_REFS: "9.9=broken" });
+        const built = await Catalog.init(cfg, new FailingSource(), () => {});
+        expect(built.sptVersions()).toEqual(["4.1"]);
+    });
+
+    test("the default version still has to load", async () => {
+        const cfg = testConfig(fresh(), { SPT_REFS: "4.1=broken" });
+        await expect(Catalog.init(cfg, new FailingSource(), () => {})).rejects.toThrow();
+    });
+
+    test("changing a version's ref refetches it even at the same commit", async () => {
+        const at = fresh();
+        await Catalog.init(testConfig(at, { SPT_REFS: "4.1=main" }), new FixtureSource(), () => {});
+        const moved = await Catalog.init(
+            testConfig(at, { SPT_REFS: "4.1=4.1x-dev" }),
+            new FixtureSource(),
+            () => {},
+        );
+        expect((await moved.refresh()).refreshed).toBe(true);
+    });
+
+    test("versions are listed in the configured order", async () => {
+        const cfg = testConfig(fresh(), { SPT_VERSIONS: "5.0,4.1" });
+        const built = await Catalog.init(cfg, new FixtureSource(), () => {});
+        expect(built.sptVersions()).toEqual(["5.0", "4.1"]);
+    });
+});
