@@ -407,19 +407,27 @@ main {
 }
 
 .j-copy {
-    font: inherit;
-    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: -0.15em;
     color: var(--muted);
     background: none;
     border: 1px solid transparent;
     border-radius: 3px;
-    padding: 0 0.3rem;
-    margin-left: 0.5rem;
+    padding: 0.1rem 0.2rem;
+    margin-left: 0.4rem;
     cursor: pointer;
-    opacity: 0;
+    opacity: 0.5;
+}
+
+.j-copy svg {
+    width: 0.8rem;
+    height: 0.8rem;
+    fill: currentColor;
 }
 
 .tree summary:hover .j-copy,
+.j-row:hover .j-copy,
 .j-copy:focus-visible {
     opacity: 1;
 }

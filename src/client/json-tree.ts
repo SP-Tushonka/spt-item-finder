@@ -123,36 +123,62 @@ function primitiveRow(key: string | null, value: unknown): HTMLElement {
         by.textContent = source;
         row.appendChild(by);
     }
+    row.appendChild(copyButton(value));
     return row;
 }
 
 function copyButton(value: unknown): HTMLButtonElement {
+    const container = value !== null && typeof value === "object";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "j-copy";
-    button.textContent = "copy";
-    button.title = "Copy this subtree as JSON";
+    button.title = container ? "Copy this subtree as JSON" : "Copy this value";
+    button.setAttribute("aria-label", button.title);
+    button.appendChild(icon("copy"));
     button.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        copyToClipboard(button, JSON.stringify(value, null, 2));
+        copyToClipboard(button, container ? JSON.stringify(value, null, 2) : String(value));
     });
     return button;
 }
 
+// Paths from Bootstrap Icons 1.11.3 (MIT): copy, check2 and x.
+const ICONS = {
+    copy: "M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z",
+    copied: "M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0",
+    failed: "M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708",
+};
+
+function icon(name: keyof typeof ICONS): SVGSVGElement {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(svg.namespaceURI, "path");
+    path.setAttribute("fill-rule", "evenodd");
+    path.setAttribute("d", ICONS[name]);
+    svg.appendChild(path);
+    return svg;
+}
+
+// Kept per element so a second click mid-flash does not record the feedback as the label.
+const labels = new WeakMap<HTMLElement, Node[]>();
+
 export function copyToClipboard(button: HTMLElement, text: string): void {
+    if (!labels.has(button)) labels.set(button, [...button.childNodes]);
+    const original = labels.get(button)!;
+    const iconOnly = button.classList.contains("j-copy");
+    const flash = (copied: boolean) => {
+        button.classList.toggle("copied", copied);
+        if (iconOnly) button.replaceChildren(icon(copied ? "copied" : "failed"));
+        else button.textContent = copied ? "copied" : "copy failed";
+        setTimeout(() => {
+            button.classList.remove("copied");
+            button.replaceChildren(...original);
+        }, 1200);
+    };
     navigator.clipboard.writeText(text).then(
-        () => {
-            button.classList.add("copied");
-            const original = button.textContent;
-            button.textContent = "copied";
-            setTimeout(() => {
-                button.classList.remove("copied");
-                button.textContent = original;
-            }, 1200);
-        },
-        () => {
-            button.textContent = "copy failed";
-        },
+        () => flash(true),
+        () => flash(false),
     );
 }
