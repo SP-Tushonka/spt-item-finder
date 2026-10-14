@@ -35,20 +35,22 @@ const detailEl = document.getElementById("detail") as HTMLElement;
 
 const emptyStateHtml = detailEl.innerHTML;
 let currentId: string | null = null;
+let currentModId: number | undefined;
 let autocomplete: Autocomplete;
 let defaultSptVersion = "4.1";
 
-/** Omitted for the default sptVersion so shared links keep their existing shape. */
-function sptQuery(): string {
-    return sptSelect.value && sptSelect.value !== defaultSptVersion
-        ? `?spt=${encodeURIComponent(sptSelect.value)}`
-        : "";
+/** The default sptVersion is omitted so shared links keep their existing shape. */
+function itemPath(id: string, modId?: number): string {
+    const params = new URLSearchParams();
+    if (sptSelect.value && sptSelect.value !== defaultSptVersion)
+        params.set("spt", sptSelect.value);
+    if (modId !== undefined) params.set("mod", String(modId));
+    const query = params.toString();
+    return `/item/${id}${query ? `?${query}` : ""}`;
 }
 
 function navigate(id: string, modId?: number): void {
-    const spt = sptQuery();
-    const pick = modId === undefined ? "" : `${spt ? "&" : "?"}mod=${modId}`;
-    history.pushState(null, "", `/item/${id}${spt}${pick}`);
+    history.pushState(null, "", itemPath(id, modId));
     loadItem(id, modId);
 }
 
@@ -104,6 +106,7 @@ function route(): void {
 
 async function loadItem(id: string, modId?: number): Promise<void> {
     currentId = id;
+    currentModId = modId;
     showNotice("Loading…");
 
     const locale = localeSelect.value || getLocale();
@@ -211,14 +214,14 @@ async function populateLocales(): Promise<void> {
 function boot(): void {
     localeSelect.addEventListener("change", () => {
         setLocale(localeSelect.value);
-        if (currentId) loadItem(currentId);
+        if (currentId) loadItem(currentId, currentModId);
     });
 
     sptSelect.addEventListener("change", () => {
         setSptVersion(sptSelect.value);
         if (currentId) {
-            history.replaceState(null, "", `/item/${currentId}${sptQuery()}`);
-            loadItem(currentId);
+            history.replaceState(null, "", itemPath(currentId, currentModId));
+            loadItem(currentId, currentModId);
         } else if (location.pathname === "/mods") {
             loadMods();
         } else {
@@ -229,14 +232,14 @@ function boot(): void {
     expandToggle.checked = getExpandAll();
     expandToggle.addEventListener("change", () => {
         setExpandAll(expandToggle.checked);
-        if (currentId) loadItem(currentId);
+        if (currentId) loadItem(currentId, currentModId);
     });
 
     modsToggle.checked = getModsEnabled();
     modsToggle.addEventListener("change", () => {
         setModsEnabled(modsToggle.checked);
         if (location.pathname === "/mods") loadMods();
-        else if (currentId) loadItem(currentId);
+        else if (currentId) loadItem(currentId, currentModId);
         else autocomplete.search();
     });
 
@@ -288,7 +291,7 @@ function renderProvenance(detail: ItemDetail): HTMLElement {
         detail.conflicts.forEach((other, index) => {
             if (index > 0) warn.append(", ");
             const otherLink = document.createElement("a");
-            otherLink.href = `/item/${detail.item._id}${sptQuery() ? `${sptQuery()}&` : "?"}mod=${other.id}`;
+            otherLink.href = itemPath(detail.item._id, other.id);
             otherLink.textContent = other.name;
             otherLink.title = `Show ${other.name}'s version of this item`;
             otherLink.addEventListener("click", (event) => {
@@ -579,7 +582,7 @@ async function toggleItems(
         for (const item of items) {
             const link = document.createElement("a");
             link.className = "mod-item";
-            link.href = `/item/${item.id}${sptQuery() ? `${sptQuery()}&` : "?"}mod=${mod.id}`;
+            link.href = itemPath(item.id, mod.id);
             link.textContent = item.name;
             link.title = item.shortName ? `${item.shortName} · ${item.id}` : item.id;
             link.addEventListener("click", (event) => {

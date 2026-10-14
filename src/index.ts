@@ -25,11 +25,19 @@ export function createServer(catalog: Catalog, cfg: Config) {
         routes: {
             "/": index,
             "/item/:id": async (req: BunRequest<"/item/:id">, server) => {
-                const shell = await getShell(server.url);
                 const id = req.params.id;
-                const sptVersion =
-                    new URL(req.url).searchParams.get("spt") || catalog.defaultSptVersion();
-                const detail = catalog.getItem(id, "en", sptVersion);
+                const shell = await getShell(server.url);
+                const params = new URL(req.url).searchParams;
+                const sptVersion = params.get("spt") || catalog.defaultSptVersion();
+                const modId = Number.parseInt(params.get("mod") ?? "", 10);
+                const detail = catalog.getItem(
+                    id,
+                    "en",
+                    sptVersion,
+                    true,
+                    undefined,
+                    Number.isFinite(modId) ? modId : undefined,
+                );
                 // An item only some sptVersions have is its own page; one they share canonicalises
                 // to the bare URL so the two do not compete as duplicates.
                 const suffix =
