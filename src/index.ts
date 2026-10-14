@@ -16,7 +16,7 @@ export function createServer(catalog: Catalog, cfg: Config) {
         return shellCache;
     };
 
-    let sitemapCache: { sha: string; xml: string } | null = null;
+    let sitemapCache: { revision: string; xml: string } | null = null;
 
     return Bun.serve({
         port: cfg.port,
@@ -59,9 +59,10 @@ export function createServer(catalog: Catalog, cfg: Config) {
                     { headers: { "content-type": "text/html;charset=utf-8" } },
                 ),
             "/sitemap.xml": () => {
-                if (sitemapCache?.sha !== catalog.meta.sha) {
+                const revision = catalog.revision();
+                if (sitemapCache?.revision !== revision) {
                     sitemapCache = {
-                        sha: catalog.meta.sha,
+                        revision,
                         xml: sitemapXml(
                             catalog.sitemapPaths(),
                             cfg.siteUrl,

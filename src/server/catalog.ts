@@ -461,6 +461,11 @@ export class Catalog {
         return this.cfg.defaultSptVersion;
     }
 
+    /** Changes when either the vanilla snapshot or the mod database does. */
+    revision(): string {
+        return `${this.meta.sha}|${this.mods?.revision() ?? ""}`;
+    }
+
     /** One URL per item: ?spt= only where the default sptVersion has nothing to show. */
     sitemapPaths(): string[] {
         const vanilla = this.data().rows;
